@@ -45,29 +45,29 @@ authors="${mod_authors}" #optional
 description='''${mod_description}'''
 # A dependency - use the . to indicate dependency for a specific modid. Dependencies are optional.
 [[dependencies.${mod_id}]] #optional
-    modId="forge" #mandatory
-    mandatory=true #mandatory
-    versionRange="${forge_version_range}" #mandatory
-    ordering="NONE"
-    side="BOTH"
+modId="forge" #mandatory
+mandatory=true #mandatory
+versionRange="${forge_version_range}" #mandatory
+ordering="NONE"
+side="BOTH"
 
 [[dependencies.${mod_id}]] #optional
-    modId = "distanthorizons"
-    mandatory = true
-    versionRange = "[2.3.5,)"
-    ordering = "NONE"
-    side = "BOTH"
+modId = "distanthorizons"
+mandatory = true
+versionRange = "[2.3.5,)"
+ordering = "NONE"
+side = "BOTH"
 
 # Here's another dependency
 [[dependencies.${mod_id}]]
-    modId="minecraft"
-    mandatory=true
-    # This version range declares a minimum of the current minecraft version up to but not including the next major version
-    versionRange="${minecraft_version_range}"
-    ordering="NONE"
-    side="BOTH"
+modId="minecraft"
+mandatory=true
+# This version range declares a minimum of the current minecraft version up to but not including the next major version
+versionRange="${minecraft_version_range}"
+ordering="NONE"
+side="BOTH"
 [[mixins]]
-    config = "be_lod_compat.mixins.json"
+config = "be_lod_compat.mixins.json"
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
 # stop your mod loading on the server for example.

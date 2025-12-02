@@ -1,34 +1,37 @@
 package com.deepseasaltyfish.BeLodCompat.util;
 
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.LTBlockDataCache;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class BlockDataUtil {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockDataUtil.class);
 
-    public static boolean tryExtractBlockData(CompoundTag tag, BlockPos pos) {
+    public static boolean tryExtractBlockData(CompoundTag tag, BlockPos pos, String dimName) {
         if (tag != null) {
             String id = tag.getString("id");
-            return tryExtractBlockData(id, tag, pos);
+            return tryExtractBlockData(id, tag, pos, dimName);
         }
         LOGGER.debug("null tag at {}", pos);
         return false;
     }
 
-
-    public static boolean tryExtractBlockData(String id, CompoundTag tag, BlockPos pos) {
+    public static boolean tryExtractBlockData(String id, CompoundTag tag, BlockPos pos, String dimName) {
         if (id == null || tag == null) return false;
         if ("littletiles:tiles".equals(id)) {
             CompoundTag contentTag = tag.getCompound("content");
-            return LTBlockDataCache.extractLTColor(pos, contentTag);
+            return LTBlockDataCache.extractLTColor(pos, contentTag, dimName);
         } else if ("immersiverailroading:block_rail".equals(id) || "immersiverailroading:block_rail_gag".equals(id)) {
             CompoundTag instanceDataTag = tag.getCompound("instanceData");
             boolean isParent = "immersiverailroading:block_rail".equals(id);
-            return IRBlockDataCache.extractIRColor(pos, instanceDataTag, isParent);
+            return IRBlockDataCache.extractIRColor(pos, instanceDataTag, isParent, dimName);
         }
-        LOGGER.debug("null tag at {}", pos);
         return false;
     }
 
@@ -48,5 +51,119 @@ public class BlockDataUtil {
         int end = name.indexOf('_', cut + 1);
         return end == -1 ? name.substring(cut + 1)
                 : name.substring(0, end);
+    }
+
+    /**
+     * Extracts the pure block ID from a block state string that may contain properties in square brackets.
+     * Example: "minecraft:oak_leaves[distance=7,persistent=false]" -> "minecraft:oak_leaves"
+     *
+     * @param blockStateStr the full block state string (may be null or empty)
+     * @return the extracted block ID, or null if input is invalid
+     */
+    public static String extractBlockName(String blockStateStr) {
+        if (blockStateStr == null || blockStateStr.isEmpty()) {
+            return null;
+        }
+        int stateStart = blockStateStr.indexOf('[');
+        if (stateStart != -1) {
+            return blockStateStr.substring(0, stateStart);
+        }
+        return blockStateStr;
+    }
+
+    /**
+     * Converts a block state string (may contain properties in square brackets) to the block's default BlockState.
+     *
+     * @param input             raw string from cache (may be null or empty, or contain "[...]" suffixes)
+     * @param pos               block position for logging
+     * @param logger            logger instance to use for error/warning messages
+     * @param handleMissingTile if true, input "littletiles:missing" will be converted to STONE default state;
+     *                          otherwise it will be treated as a normal block ID (likely resulting in AIR)
+     * @return the default BlockState of the block, or Blocks.AIR if parsing fails
+     */
+    public static BlockState toDefaultBlockState(String input, BlockPos pos, DebugLogger logger, boolean handleMissingTile) {
+        if (input == null || input.isEmpty()) {
+            logger.error("null or empty block state string at {}", pos);
+            return Blocks.AIR.defaultBlockState();
+        }
+
+        if (handleMissingTile && "littletiles:missing".equals(input)) {
+            logger.debug("Found \"littletiles:missing\" value at {}, converted to stone", pos);
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        String blockName = extractBlockName(input);
+        if (blockName == null) {
+            logger.error("Failed to extract block name from '{}' at {}", input, pos);
+            return Blocks.AIR.defaultBlockState();
+        }
+
+        try {
+            ResourceLocation blockId = ResourceLocation.parse(blockName);
+            if (!BuiltInRegistries.BLOCK.containsKey(blockId)) {
+                logger.warn("Unknown block ID '{}' at {}, using air", blockName, pos);
+                return Blocks.AIR.defaultBlockState();
+            }
+            Block block = BuiltInRegistries.BLOCK.get(blockId);
+            return block.defaultBlockState();
+        } catch (Exception e) {
+            logger.error("Failed to parse block ID '{}' from string {} at {}", blockName, input, pos, e);
+            return Blocks.AIR.defaultBlockState();
+        }
+    }
+
+    /**
+     * Multiply two ARGB colors.
+     * RGB channels are multiplied (component-wise) and normalized to 0-255.
+     * Alpha uses the alpha from the overlay color (cached).
+     */
+    public static int multiplyArgb(int base, int overlay) {
+        int baseA = (base >> 24) & 0xFF;
+        int baseR = (base >> 16) & 0xFF;
+        int baseG = (base >> 8) & 0xFF;
+        int baseB = base & 0xFF;
+
+        int overA = (overlay >> 24) & 0xFF;
+        int overR = (overlay >> 16) & 0xFF;
+        int overG = (overlay >> 8) & 0xFF;
+        int overB = overlay & 0xFF;
+
+        // Multiply RGB (normalized)
+        int r = (baseR * overR) / 255;
+        int g = (baseG * overG) / 255;
+        int b = (baseB * overB) / 255;
+        // Use overlay alpha (or optionally combine)
+        int a = overA;
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * Converts a color value from ARGB format to RGBA format.
+     *
+     * <p>Input format: 0xAARRGGBB (Android/Windows standard), output format: 0xRRGGBBAA (OpenGL/RGBA standard).
+     *
+     * @param argbColor the color in ARGB format, where:
+     * <ul>
+     *  <li>bits 31-24: Alpha (transparency)</li>
+     *  <li>bits 23-16: Red</li>
+     *  <li>bits 15-8:  Green</li>
+     *  <li>bits 7-0:   Blue</li>
+     * </ul>
+     * @return the color in RGBA format, where:
+     * <ul>
+     *  <li>bits 31-24: Red</li>
+     *  <li>bits 23-16: Green</li>
+     *  <li>bits 15-8:  Blue</li>
+     *  <li>bits 7-0:   Alpha (transparency)</li>
+     * </ul>
+     */
+    public static int argbToRgba(int argbColor) {
+        int alpha = (argbColor >> 24) & 0xFF;
+        int red   = (argbColor >> 16) & 0xFF;
+        int green = (argbColor >> 8)  & 0xFF;
+        int blue  = argbColor & 0xFF;
+
+        return (red << 24) | (green << 16) | (blue << 8) | alpha;
     }
 }

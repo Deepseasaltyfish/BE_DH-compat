@@ -1,8 +1,8 @@
 package com.deepseasaltyfish.BeLodCompat;
 
 import com.deepseasaltyfish.BeLodCompat.common.BlockReplacer;
-import com.deepseasaltyfish.BeLodCompat.config.CfgConfig;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
+import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -25,6 +25,7 @@ public class BeLodCompat {
         modEventBus.addListener(this::onClientSetup);
         NeoForge.EVENT_BUS.register(this);
         ModConfigs.register();
+        DatabaseManager.init();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -37,13 +38,5 @@ public class BeLodCompat {
 
     @net.neoforged.bus.api.SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
-    }
-
-    @net.neoforged.bus.api.SubscribeEvent
-    public void onConfigReload(CfgConfig.ReloadEvent event) {
-        boolean newOverride = ModConfigs.overrideIrRailBlock;
-        String newBlockId = ModConfigs.overrideIrRailBlockId;
-        LOGGER.info("Config reload event received");
-        BlockReplacer.updateConfig(newOverride, newBlockId);
     }
 }

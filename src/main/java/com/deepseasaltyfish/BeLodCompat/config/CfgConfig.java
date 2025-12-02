@@ -1,20 +1,29 @@
 package com.deepseasaltyfish.BeLodCompat.config;
 
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
-import net.neoforged.bus.api.Event;
+import net.neoforged.fml.ModLoader;
 import net.neoforged.neoforge.common.NeoForge;
 
 import java.io.IOException;
-import java.lang.annotation.*;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Simple configuration file manager with hot-reload support.
+ * Reads/writes .cfg files in the config directory and notifies listeners via NeoForge event bus.
+ */
 public class CfgConfig {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(CfgConfig.class);
     private static final Map<Path, Class<?>> registeredConfigs = new ConcurrentHashMap<>();
@@ -22,6 +31,9 @@ public class CfgConfig {
     private static final Map<Path, Long> lastModifiedMap = new ConcurrentHashMap<>();
     private static volatile boolean watcherStarted = false;
 
+    /**
+     * Annotation for configuration field comments.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
     public @interface Comment {
@@ -29,16 +41,20 @@ public class CfgConfig {
     }
 
     /**
-     * Config reload event (posted to NeoForge event bus)
+     * Event fired when a configuration file is reloaded.
+     * Posted to the NeoForge event bus.
      */
-    public static class ReloadEvent extends Event {
+    public static class ReloadEvent extends net.neoforged.bus.api.Event {
         private final Path configFile;
         public ReloadEvent(Path configFile) { this.configFile = configFile; }
         public Path getConfigFile() { return configFile; }
     }
 
     /**
-     * Register config class and start file watcher
+     * Registers a configuration class and starts file watching (asynchronous polling).
+     *
+     * @param configClass the class containing static fields annotated with @Comment
+     * @param fileName    the file name (relative to the config directory)
      */
     public static void register(Class<?> configClass, String fileName) {
         Path path = Paths.get("config", fileName);
@@ -50,6 +66,12 @@ public class CfgConfig {
         }
     }
 
+    /**
+     * Loads or reloads the configuration from the given file.
+     *
+     * @param configClass the configuration class
+     * @param path        the file path
+     */
     private static void loadConfig(Class<?> configClass, Path path) {
         Map<String, Object> defaults = new LinkedHashMap<>();
         Map<String, String> comments = new LinkedHashMap<>();
@@ -64,6 +86,7 @@ public class CfgConfig {
             }
         }
 
+        // Merge and write back if necessary
         boolean needSave = false;
         for (Map.Entry<String, Object> entry : defaults.entrySet()) {
             String key = entry.getKey();
@@ -81,10 +104,18 @@ public class CfgConfig {
             saveConfig(path, defaults, comments, props);
         }
 
-        // Post reload event to NeoForge event bus
+        // Fire reload event after loading
         NeoForge.EVENT_BUS.post(new ReloadEvent(path));
     }
 
+    /**
+     * Saves the configuration to a file with comments.
+     *
+     * @param path      the file path
+     * @param defaults  map of keys to default values
+     * @param comments  map of keys to comment strings
+     * @param props     properties containing current values
+     */
     private static void saveConfig(Path path, Map<String, Object> defaults, Map<String, String> comments, Properties props) {
         List<String> lines = new ArrayList<>();
         for (Map.Entry<String, Object> entry : defaults.entrySet()) {
@@ -103,6 +134,14 @@ public class CfgConfig {
         }
     }
 
+    /**
+     * Recursively collects static fields from a class and its inner classes.
+     *
+     * @param clazz    the class to scan
+     * @param prefix   dot-separated prefix for nested keys
+     * @param defaults map to store default values
+     * @param comments map to store comments
+     */
     private static void collectFields(Class<?> clazz, String prefix, Map<String, Object> defaults, Map<String, String> comments) {
         for (Field field : clazz.getDeclaredFields()) {
             if (!Modifier.isStatic(field.getModifiers())) continue;
@@ -111,6 +150,7 @@ public class CfgConfig {
 
             String key = (prefix == null ? "" : prefix + ".") + field.getName();
 
+            // Handle inner classes as groups
             if (Modifier.isStatic(field.getType().getModifiers()) && field.getType().getDeclaredFields().length > 0) {
                 collectFields(field.getType(), key, defaults, comments);
                 continue;
@@ -127,6 +167,14 @@ public class CfgConfig {
         }
     }
 
+    /**
+     * Sets a static field value from a string.
+     *
+     * @param clazz        the class containing the field
+     * @param fullKey      full dot-separated key
+     * @param strValue     string value from config file
+     * @param defaultValue default value to determine type
+     */
     private static void setFieldValue(Class<?> clazz, String fullKey, String strValue, Object defaultValue) {
         String[] parts = fullKey.split("\\.");
         Class<?> targetClass = clazz;
@@ -150,6 +198,14 @@ public class CfgConfig {
         }
     }
 
+    /**
+     * Parses a string into the appropriate type based on the default value.
+     *
+     * @param str          the string to parse
+     * @param defaultValue the default value (used for type inference)
+     * @return parsed object
+     * @throws UnsupportedOperationException if the type is not supported
+     */
     private static Object parseValue(String str, Object defaultValue) {
         if (defaultValue instanceof Boolean) return Boolean.parseBoolean(str);
         if (defaultValue instanceof Integer) return Integer.parseInt(str);
@@ -157,6 +213,9 @@ public class CfgConfig {
         throw new UnsupportedOperationException("Unsupported type: " + defaultValue.getClass());
     }
 
+    /**
+     * Starts the file watcher that periodically checks for modifications.
+     */
     private static void startWatcher() {
         watcherService.scheduleWithFixedDelay(() -> {
             for (Map.Entry<Path, Class<?>> entry : registeredConfigs.entrySet()) {
