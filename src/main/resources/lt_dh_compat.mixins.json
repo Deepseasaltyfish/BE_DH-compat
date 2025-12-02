@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.deepseasaltyfish.LtDhCompat.mixins",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "server.MixinChunkSerialize",
+    "server.MixinLevelChunk"
+  ],
+  "client": [
+    "client.MixinClientLevel",
+    "client.MixinClientPacketListener"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "lt_dh_compat.refmap.json"
+}
