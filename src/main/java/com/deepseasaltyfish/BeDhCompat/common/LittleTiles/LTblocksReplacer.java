@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeDhCompat.common;
+package com.deepseasaltyfish.BeDhCompat.common.LittleTiles;
 
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
@@ -13,33 +13,31 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LTblocksReplacer extends DhApiChunkProcessingEvent {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private final AtomicBoolean setup = new AtomicBoolean(false);
+    private static String extractBaseId(String name) {
+        int cut = name.indexOf(':');
+        if (cut == -1) return name;
+        int end = name.indexOf('_', cut + 1);
+        return end == -1 ? name.substring(cut + 1)
+                : name.substring(0, end);
+    }
+
     @Override
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
     {
-        // 1. 一次性初始化（只跑一圈）
-        if (setup.compareAndSet(false, true)) {
-            // 这里可以预加载一些常量，比如默认石头包装器
-        }
-
-        // 2. 每方块都跑
         IDhApiBlockStateWrapper current = e.value.currentBlock;
-        if (!current.getSerialString().contains("littletiles:tiles")) return;
-
-        LOGGER.warn("114514:正常进入");
-
+        String base = extractBaseId(current.getSerialString());
+        if (!base.equals("littletiles:tiles")) return;
 
         BlockPos pos = new BlockPos((e.value.chunkX << 4) + e.value.relativeBlockPosX,
                 e.value.blockPosY,
                 (e.value.chunkZ << 4) + e.value.relativeBlockPosZ);
 
-        LOGGER.warn("pos:"+pos);
 
-        BlockState state = LTColorCache.getTrueColor(pos);   // 你自己的缓存
+        //TODO:colorize and specially handel blocks containing glass/light/liquid tiles
+        BlockState state = LTColorCache.getTrueColor(pos);
         if (state == null) state = Blocks.AIR.defaultBlockState();
 
         ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());

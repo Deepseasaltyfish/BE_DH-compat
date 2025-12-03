@@ -1,6 +1,7 @@
 package com.deepseasaltyfish.BeDhCompat;
 
-import com.deepseasaltyfish.BeDhCompat.common.LTblocksReplacer;
+import com.deepseasaltyfish.BeDhCompat.common.ImmersiveRairoading.IRblocksReplacer;
+import com.deepseasaltyfish.BeDhCompat.common.LittleTiles.LTblocksReplacer;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -33,16 +34,18 @@ public class BeDhCompat
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-        LTblocksReplacer replacer = new LTblocksReplacer();
-        DhApi.events.bind(DhApiChunkProcessingEvent.class, replacer);
+
+        LTblocksReplacer LTReplacer = new LTblocksReplacer();
+        DhApi.events.bind(DhApiChunkProcessingEvent.class, LTReplacer);
+
+        IRblocksReplacer IRReplacer = new IRblocksReplacer();
+        DhApi.events.bind(DhApiChunkProcessingEvent.class, IRReplacer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event)
     {
-        // Do something when the server starts
-        LOGGER.info("HELLO from server starting");
     }
 
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent

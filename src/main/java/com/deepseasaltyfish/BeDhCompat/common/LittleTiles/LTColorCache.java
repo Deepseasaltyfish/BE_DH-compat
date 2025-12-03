@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeDhCompat.common;
+package com.deepseasaltyfish.BeDhCompat.common.LittleTiles;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
