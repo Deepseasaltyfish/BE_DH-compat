@@ -1,6 +1,6 @@
-package com.deepseasaltyfish.LtDhCompat;
+package com.deepseasaltyfish.BeDhCompat;
 
-import com.deepseasaltyfish.LtDhCompat.common.LTblocksReplacer;
+import com.deepseasaltyfish.BeDhCompat.common.LTblocksReplacer;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -16,15 +16,15 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/mods.toml file
-@Mod(LtDhCompat.MODID)
-public class LtDhCompat
+@Mod(BeDhCompat.MODID)
+public class BeDhCompat
 {
     // Define mod id in a common place for everything to reference
-    public static final String MODID = "lt_dh_compat";
+    public static final String MODID = "be_dh_compat";
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public LtDhCompat(FMLJavaModLoadingContext context)
+    public BeDhCompat(FMLJavaModLoadingContext context)
     {
         IEventBus modEventBus = context.getModEventBus();
         modEventBus.addListener(this::commonSetup);
@@ -33,11 +33,8 @@ public class LtDhCompat
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-        // ① 先创建事件实例
         LTblocksReplacer replacer = new LTblocksReplacer();
-        // 注册 DH 事件
         DhApi.events.bind(DhApiChunkProcessingEvent.class, replacer);
-//        LOGGER.info("DH 事件 LTblocksReplacer 已注册");
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call

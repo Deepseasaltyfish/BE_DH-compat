@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.LtDhCompat.common;
+package com.deepseasaltyfish.BeDhCompat.common;
 
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;

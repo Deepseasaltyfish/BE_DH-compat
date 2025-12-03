@@ -60,7 +60,7 @@ minecraft {
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile',
                     "${projectDir}/build/createSrgToMcp/output.srg"
-            arg '-mixin.config=lt_dh_compat.mixins.json'
+            arg '-mixin.config=be_dh_compat.mixins.json'
         }
         server {
             property 'forge.enabledGameTestNamespaces', mod_id
@@ -68,7 +68,7 @@ minecraft {
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile',
                     "${projectDir}/build/createSrgToMcp/output.srg"
-            arg '-mixin.config=lt_dh_compat.mixins.json'
+            arg '-mixin.config=be_dh_compat.mixins.json'
         }
 
         gameTestServer {
@@ -116,9 +116,9 @@ dependencies {
 }
 
 mixin {
-    add sourceSets.main, 'lt_dh_compat.refmap.json'     // 生成 ref-map
-    config 'lt_dh_compat.mixins.json'                   // 声明配置
-    debug.verbose = true                                // 调试用，可删
+    add sourceSets.main, 'be_dh_compat.refmap.json'
+    config 'be_dh_compat.mixins.json'
+    debug.verbose = true
     debug.export = true
 }
 

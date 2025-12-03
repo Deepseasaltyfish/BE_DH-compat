@@ -1,5 +1,5 @@
-package com.deepseasaltyfish.LtDhCompat.mixins.client;
-import com.deepseasaltyfish.LtDhCompat.common.LTColorCache;
+package com.deepseasaltyfish.BeDhCompat.mixins.client;
+import com.deepseasaltyfish.BeDhCompat.common.LTColorCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;

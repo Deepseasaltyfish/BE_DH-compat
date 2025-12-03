@@ -1,6 +1,6 @@
-package com.deepseasaltyfish.LtDhCompat.mixins.server;
+package com.deepseasaltyfish.BeDhCompat.mixins.server;
 
-import com.deepseasaltyfish.LtDhCompat.common.LTColorCache;
+import com.deepseasaltyfish.BeDhCompat.common.LTColorCache;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Mixin;

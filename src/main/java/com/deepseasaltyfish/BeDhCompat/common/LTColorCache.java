@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.LtDhCompat.common;
+package com.deepseasaltyfish.BeDhCompat.common;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 public class LTColorCache {
