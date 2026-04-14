@@ -2,6 +2,7 @@ package com.deepseasaltyfish.BeDhCompat;
 
 import com.deepseasaltyfish.BeDhCompat.common.ImmersiveRairoading.IRblocksReplacer;
 import com.deepseasaltyfish.BeDhCompat.common.LittleTiles.LTblocksReplacer;
+import com.deepseasaltyfish.BeDhCompat.config.ModConfigs;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -30,6 +31,7 @@ public class BeDhCompat
         IEventBus modEventBus = context.getModEventBus();
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);
+        ModConfigs.register();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)

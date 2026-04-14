@@ -1,6 +1,6 @@
 package com.deepseasaltyfish.BeDhCompat.common.LittleTiles;
 
-import com.mojang.logging.LogUtils;
+import com.deepseasaltyfish.BeDhCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -17,16 +17,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.slf4j.Logger;
-
 public class LTColorCache {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    //TODO: we should store these cache in region instead of generate them frequently
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTColorCache.class);
 
     // Main cache: each chunk maps to a BlockPos -> LTBlockData (BlockState + color)
     private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkColorMap = new ConcurrentHashMap<>();
 
     /**
-     * 存储方块状态和颜色（ARGB格式）
+     * ARGB format
      */
     private static class LTBlockData {
         private final BlockState blockState;
@@ -65,7 +64,7 @@ public class LTColorCache {
                 }
             }
 
-            LOGGER.warn("No tile found at {}", pos);
+            LOGGER.error("No tile found at {}", pos);
 
         } catch (Exception e) {
             LOGGER.error("Failed to extract LT color at {}", pos, e);
@@ -73,7 +72,7 @@ public class LTColorCache {
     }
 
     /**
-     * 从 tile 的 CompoundTag 中提取颜色 (格式: 0xBBGGRRAA)
+     * get color from CompoundTag in tile (format: 0xBBGGRRAA)
      */
     private static int extractColorFromTile(CompoundTag tileCompound) {//红色00 00 FF,绿色为00 FF 00,蓝色FF 00 00,黄色00 FF FF，FF 00 FF洋红,FF FF 00青绿色
         int packed;
@@ -82,14 +81,14 @@ public class LTColorCache {
         } else if (tileCompound.contains("c", Tag.TAG_INT)) {
             packed = tileCompound.getInt("c");
         } else {
-            LOGGER.error("Invalid color tag:" + tileCompound);
-            return 0; // 无颜色，全透明
+            LOGGER.debug("empty color tag:" + tileCompound);
+            return 0; // no color, full transparent
         }
         return bgrAlphaToArgb(packed);
     }
 
     /**
-     * 将 LittleTiles 的 0xBBGGRRAA 格式转换为标准 ARGB (0xAARRGGBB)
+     * Convert LittleTiles 0xBBGGRRAA format to ARGB (0xAARRGGBB)
      */
     private static int bgrAlphaToArgb(int bgra) {
         int b = (bgra >> 24) & 0xFF;
@@ -99,17 +98,18 @@ public class LTColorCache {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
-    //Used for converting string to BlockState
-    public static BlockState parseBlockStateString(String blockStateStr) {
+    /**
+     * Used for converting string to BlockState
+     */
+    public static BlockState parseBlockStateString(String blockStateStr, BlockPos pos) {
         try {
             if (blockStateStr == null || blockStateStr.isEmpty()) {
-                LOGGER.warn("null blockStateStr");
+                LOGGER.error("null blockStateString at " + pos);
                 return Blocks.AIR.defaultBlockState();
             }
-            //LOGGER.warn(blockStateStr);
             //sometimes the blockStateStr could be "littletiles:missing" (mostly caused by missing other mod), temporarily convert to stone
             if(blockStateStr.equals("littletiles:missing")){
-                LOGGER.warn("find LT \"littletiles:missing\" value, converted to stone");
+                LOGGER.debug("find LT \"littletiles:missing\" value at " + pos + ", converted to stone");
                 return Blocks.STONE.defaultBlockState();
             }
 
@@ -128,9 +128,6 @@ public class LTColorCache {
             ResourceLocation blockId = new ResourceLocation(blockName);
 
             Block block = BuiltInRegistries.BLOCK.get(blockId);
-            if (block == null) {
-                throw new IllegalArgumentException("Unknown block id: " + blockName);
-            }
 
             BlockState state = block.defaultBlockState();
 
@@ -158,7 +155,7 @@ public class LTColorCache {
             return state;
 
         } catch (Exception e) {
-            LOGGER.error("Failed to parse BlockState string: " + blockStateStr, e);
+            LOGGER.error("Failed to parse BlockState string: " + blockStateStr + " at " + pos, e);
             return Blocks.AIR.defaultBlockState(); // fallback
         }
     }
@@ -173,7 +170,7 @@ public class LTColorCache {
      */
     public static void put(BlockPos pos, String blockStr, int color) {
         ChunkPos chunkPos = new ChunkPos(pos);
-        BlockState convertedState = parseBlockStateString(blockStr);
+        BlockState convertedState = parseBlockStateString(blockStr, pos);
         if(convertedState != null){
             chunkColorMap
                     .computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())

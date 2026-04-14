@@ -1,6 +1,6 @@
 package com.deepseasaltyfish.BeDhCompat.common.LittleTiles;
 
-import com.mojang.logging.LogUtils;
+import com.deepseasaltyfish.BeDhCompat.util.DebugLogger;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.interfaces.block.IDhApiBlockStateWrapper;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -10,13 +10,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class LTblocksReplacer extends DhApiChunkProcessingEvent {
-    private static final Logger LOGGER = LogUtils.getLogger();
+public class LTblocksReplacer extends DhApiChunkProcessingEvent {//TODO:colorize and specially handel blocks containing glass/light/liquid tiles
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTblocksReplacer.class);
     private static final AtomicBoolean DEAD = new AtomicBoolean(false);
     private static String extractBaseId(String name) {
         int cut = name.indexOf(':');
@@ -39,11 +38,8 @@ public class LTblocksReplacer extends DhApiChunkProcessingEvent {
                 e.value.blockPosY,
                 (e.value.chunkZ << 4) + e.value.relativeBlockPosZ);
 
-
-        //TODO:colorize and specially handel blocks containing glass/light/liquid tiles
         BlockState state = LTColorCache.getBlockStateAt(pos);
         if (state == null) state = Blocks.AIR.defaultBlockState();
-
         ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
         try {
             IDhApiBlockStateWrapper wrapper = DhApi.Delayed.wrapperFactory

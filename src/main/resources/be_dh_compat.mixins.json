@@ -6,7 +6,7 @@
   "mixins": [
     "server.MixinChunkSerialize",
     "server.MixinLevelChunk",
-    "test.MixinBlockStateWrapper"
+    "distantHorizon.MixinBlockStateWrapper"
   ],
   "client": [
     "client.MixinClientLevel",

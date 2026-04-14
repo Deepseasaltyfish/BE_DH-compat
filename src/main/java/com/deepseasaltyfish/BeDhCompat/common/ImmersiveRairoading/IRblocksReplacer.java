@@ -1,19 +1,22 @@
 package com.deepseasaltyfish.BeDhCompat.common.ImmersiveRairoading;
 
-import com.mojang.logging.LogUtils;
+import com.deepseasaltyfish.BeDhCompat.util.DebugLogger;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.interfaces.block.IDhApiBlockStateWrapper;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
 import com.seibel.distanthorizons.api.methods.events.sharedParameterObjects.DhApiEventParam;
-import org.slf4j.Logger;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IRblocksReplacer extends DhApiChunkProcessingEvent {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(IRblocksReplacer.class);
     private static final AtomicBoolean DEAD = new AtomicBoolean(false);
-    private static IDhApiBlockStateWrapper SOUL;
 
     private static String IRextractBaseId(String name) {
         int cut = name.indexOf(':');
@@ -29,25 +32,27 @@ public class IRblocksReplacer extends DhApiChunkProcessingEvent {
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e) {
         if (DEAD.get()) return;
 
-        if (SOUL == null) {
-            try {
-                SOUL = DhApi.Delayed.wrapperFactory
-                        .getDefaultBlockStateWrapper("minecraft:soul_sand", e.value.levelWrapper);
-            } catch (IOException ex) {
-                LOGGER.error("fail to preload soul_sand, unbind", ex);
-                if (!DEAD.getAndSet(true)) {
-                    DhApi.events.unbind(DhApiChunkProcessingEvent.class, this.getClass());
-                }
+        IDhApiBlockStateWrapper current = e.value.currentBlock;
+        String base = IRextractBaseId(current.getSerialString());
+        if (!"immersiverailroading:block_rail".equals(base) && !"immersiverailroading:block_rail_gag".equals(base)) return;
+
+        BlockPos pos = new BlockPos((e.value.chunkX << 4) + e.value.relativeBlockPosX,
+                e.value.blockPosY,
+                (e.value.chunkZ << 4) + e.value.relativeBlockPosZ);
+
+//        BlockState state = IRColorCache.getColor(pos);
+//        if (state == null) state = Blocks.SOUL_SAND.defaultBlockState();
+        BlockState state = Blocks.SOUL_SAND.defaultBlockState();
+        ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        try {
+            IDhApiBlockStateWrapper wrapper = DhApi.Delayed.wrapperFactory
+                    .getDefaultBlockStateWrapper(id.toString(), e.value.levelWrapper);
+            e.value.setBlockOverride(wrapper);
+        } catch (IOException ex) {
+            LOGGER.error("DH cant package {}", id, ex);
+            if (!DEAD.getAndSet(true)) {
+                DhApi.events.unbind(DhApiChunkProcessingEvent.class, this.getClass());
             }
         }
-
-        //TODO:blocks will be optional in config
-
-        String base = IRextractBaseId(e.value.currentBlock.getSerialString());
-//        LOGGER.warn("base:"+base);
-
-        if (!base.equals("immersiverailroading:block_rail")) return;
-
-        if (SOUL != null) e.value.setBlockOverride(SOUL);
     }
 }

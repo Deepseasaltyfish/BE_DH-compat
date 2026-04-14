@@ -13,5 +13,6 @@ public class MixinClientLevel {
     private void onChunkUnload(LevelChunk chunk, CallbackInfo ci) {
         ChunkPos pos = chunk.getPos();
         LTColorCache.removeChunk(pos);
+//        IRColorCache.removeChunk(pos);
     }
 }

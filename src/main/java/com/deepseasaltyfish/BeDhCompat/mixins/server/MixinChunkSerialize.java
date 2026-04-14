@@ -13,10 +13,6 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
-
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,20 +21,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ChunkSerializer.class)
 public class MixinChunkSerialize
 {
-
-    private static final Logger LOGGER = LogManager.getLogger();
-
-
-
     @Inject(method = "write", at = @At("HEAD"))
     private static void onChunkWrite(ServerLevel level, ChunkAccess chunk, CallbackInfoReturnable<CompoundTag> cir) {
-        if (chunk instanceof LevelChunk levelChunk) {//&& Config.Common.LodBuilding.convertLTBlock.get()
+        if (chunk instanceof LevelChunk levelChunk) {
             levelChunk.getBlockEntities().forEach((pos, be) -> {
                 CompoundTag beTag = be.saveWithFullMetadata();
-                if (beTag != null && "littletiles:tiles".equals(beTag.getString("id"))) {
+                String id = beTag.getString("id");
+
+                if ("littletiles:tiles".equals(id)) {
                     CompoundTag contentTag = beTag.getCompound("content");
                     LTColorCache.extractLTColor(pos, contentTag);
                 }
+
+//                if ("immersiverailroading:block_rail".equals(id) || "immersiverailroading:block_rail_gag".equals(id)) {
+//                    boolean isParent = id.equals("immersiverailroading:block_rail");
+//                    CompoundTag instanceDataTag = beTag.getCompound("instanceData");
+//                    IRColorCache.extractIRColor(pos, instanceDataTag,isParent);
+//                }
             });
         }
     }
@@ -46,19 +45,24 @@ public class MixinChunkSerialize
     @Inject(method = "read", at = @At("RETURN"))
     private static void onChunkRead(ServerLevel level, PoiManager poiManager, ChunkPos chunkPos, CompoundTag tag, CallbackInfoReturnable<ProtoChunk> cir) {
         ChunkAccess chunk = cir.getReturnValue();
-        if (chunk instanceof ProtoChunk) {//&& Config.Common.LodBuilding.convertLTBlock.get()
+        if (chunk instanceof ProtoChunk) {
             ListTag beList = tag.getList("block_entities", 10);
             for (int i = 0; i < beList.size(); i++) {
                 CompoundTag beTag = beList.getCompound(i);
-                if (beTag != null && "littletiles:tiles".equals(beTag.getString("id"))) {
-                    BlockPos pos = BlockEntity.getPosFromTag(beTag);
+                String id = beTag.getString("id");
+                BlockPos pos = BlockEntity.getPosFromTag(beTag);
+
+                if ("littletiles:tiles".equals(id)) {
                     CompoundTag contentTag = beTag.getCompound("content");
                     LTColorCache.extractLTColor(pos, contentTag);
                 }
+
+//                if ("immersiverailroading:block_rail".equals(id) || "immersiverailroading:block_rail_gag".equals(id)) {
+//                    boolean isParent = id.equals("immersiverailroading:block_rail");
+//                    CompoundTag instanceDataTag = beTag.getCompound("instanceData");
+//                    IRColorCache.extractIRColor(pos, instanceDataTag,isParent);
+//                }
             }
         }
     }
-
-
-
 }

@@ -1,4 +1,5 @@
 package com.deepseasaltyfish.BeDhCompat.mixins.client;
+
 import com.deepseasaltyfish.BeDhCompat.common.LittleTiles.LTColorCache;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.BlockPos;
@@ -18,31 +19,52 @@ public class MixinClientPacketListener {
     //init chunk early and unload chunk late, to make sure we don't lost any data
     @Inject(method = "handleBlockEntityData", at = @At("HEAD"))
     private void onReceiveBlockEntity(ClientboundBlockEntityDataPacket packet, CallbackInfo ci) {
-//        if (Config.Common.LodBuilding.convertLTBlock.get()){
-            CompoundTag tag = packet.getTag();
-            if (tag != null && "littletiles:tiles".equals(tag.getString("id"))) {
-                BlockPos pos = packet.getPos();
-                CompoundTag contentTag = tag.getCompound("content");
-                LTColorCache.extractLTColor(pos, contentTag);
-            }
+        CompoundTag tag = packet.getTag();
+        if (tag != null && "littletiles:tiles".equals(tag.getString("id"))) {
+            BlockPos pos = packet.getPos();
+            CompoundTag contentTag = tag.getCompound("content");
+            LTColorCache.extractLTColor(pos, contentTag);
+        }
+//        if (tag != null) {
+//            String id = tag.getString("id");
+//            if (!"immersiverailroading:block_rail".equals(id) && !"immersiverailroading:block_rail_gag".equals(id)) return;
+//
+//            boolean isParent = id.equals("immersiverailroading:block_rail");
+//
+//            BlockPos pos = packet.getPos();
+//            CompoundTag instanceDataTag = tag.getCompound("instanceData");
+//            Minecraft mc = Minecraft.getInstance();
+//            ClientLevel level = mc.level;
+//
+//            IRColorCache.extractIRColor(pos, instanceDataTag, isParent);
 //        }
     }
 
     @Inject(method = "handleLevelChunkWithLight", at = @At("RETURN"))
     private void onChunkLoad(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
-//        if (Config.Common.LodBuilding.convertLTBlock.get()){
-            int chunkX = packet.getX();
-            int chunkZ = packet.getZ();
+        int chunkX = packet.getX();
+        int chunkZ = packet.getZ();
 
-            ClientboundLevelChunkPacketData data = packet.getChunkData();
-            Consumer<ClientboundLevelChunkPacketData.BlockEntityTagOutput> consumer = data.getBlockEntitiesTagsConsumer(chunkX, chunkZ);
+        ClientboundLevelChunkPacketData data = packet.getChunkData();
+        Consumer<ClientboundLevelChunkPacketData.BlockEntityTagOutput> consumer = data.getBlockEntitiesTagsConsumer(chunkX, chunkZ);
 
-            consumer.accept((blockPos, type, tag) -> {
-                if (tag != null && "littletiles:tiles".equals(tag.getString("id"))) {
-                    CompoundTag content = tag.getCompound("content");
-                    LTColorCache.extractLTColor(blockPos, content);
-                }
-            });
-//        }
+        consumer.accept((blockPos, type, tag) -> {
+            if (tag != null && "littletiles:tiles".equals(tag.getString("id"))) {
+                CompoundTag content = tag.getCompound("content");
+                LTColorCache.extractLTColor(blockPos, content);
+            }
+//            if (tag != null) {
+//                String id = tag.getString("id");
+//                if (!"immersiverailroading:block_rail".equals(id) && !"immersiverailroading:block_rail_gag".equals(id)) return;
+//
+//                boolean isParent = id.equals("immersiverailroading:block_rail");
+//
+//                CompoundTag instanceDataTag = tag.getCompound("instanceData");
+//                Minecraft mc = Minecraft.getInstance();
+//                ClientLevel level = mc.level;
+//
+//                IRColorCache.extractIRColor(blockPos, instanceDataTag, isParent);
+//            }
+        });
     }
 }
