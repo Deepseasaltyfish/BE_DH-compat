@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "server.MixinChunkSerialize",
-    "server.MixinLevelChunk"
+    "server.MixinLevelChunk",
+    "test.MixinBlockStateWrapper"
   ],
   "client": [
     "client.MixinClientLevel",
