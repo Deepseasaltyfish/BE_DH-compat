@@ -13,9 +13,11 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LTblocksReplacer extends DhApiChunkProcessingEvent {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final AtomicBoolean DEAD = new AtomicBoolean(false);
     private static String extractBaseId(String name) {
         int cut = name.indexOf(':');
         if (cut == -1) return name;
@@ -27,6 +29,8 @@ public class LTblocksReplacer extends DhApiChunkProcessingEvent {
     @Override
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
     {
+        if (DEAD.get()) return;
+
         IDhApiBlockStateWrapper current = e.value.currentBlock;
         String base = extractBaseId(current.getSerialString());
         if (!base.equals("littletiles:tiles")) return;
@@ -37,7 +41,7 @@ public class LTblocksReplacer extends DhApiChunkProcessingEvent {
 
 
         //TODO:colorize and specially handel blocks containing glass/light/liquid tiles
-        BlockState state = LTColorCache.getTrueColor(pos);
+        BlockState state = LTColorCache.getBlockStateAt(pos);
         if (state == null) state = Blocks.AIR.defaultBlockState();
 
         ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
@@ -47,7 +51,9 @@ public class LTblocksReplacer extends DhApiChunkProcessingEvent {
             e.value.setBlockOverride(wrapper);
         } catch (IOException ex) {
             LOGGER.error("DH cant package {}", id, ex);
-            DhApi.events.unbind(DhApiChunkProcessingEvent.class, this.getClass());
+            if (!DEAD.getAndSet(true)) {
+                DhApi.events.unbind(DhApiChunkProcessingEvent.class, this.getClass());
+            }
         }
     }
 }

@@ -35,9 +35,9 @@ public class IRblocksReplacer extends DhApiChunkProcessingEvent {
                         .getDefaultBlockStateWrapper("minecraft:soul_sand", e.value.levelWrapper);
             } catch (IOException ex) {
                 LOGGER.error("fail to preload soul_sand, unbind", ex);
-                DhApi.events.unbind(DhApiChunkProcessingEvent.class, IRblocksReplacer.class);
-                DEAD.set(true);
-                return;
+                if (!DEAD.getAndSet(true)) {
+                    DhApi.events.unbind(DhApiChunkProcessingEvent.class, this.getClass());
+                }
             }
         }
 

@@ -2,7 +2,7 @@ package com.deepseasaltyfish.BeDhCompat.mixins.test;
 
 import com.seibel.distanthorizons.core.logging.DhLogger;
 import com.seibel.distanthorizons.core.util.LodUtil;
-import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.BlockStateWrapper;
+import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.BlockStateWrapper;//emm should not need to mixin fabric side
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

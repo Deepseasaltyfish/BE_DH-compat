@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
@@ -29,30 +30,35 @@ public class LTColorCache {
             CompoundTag tilesTag = contentTag.getCompound("tiles");
             if (!tilesTag.isEmpty()) {
                 String firstTileId = tilesTag.getAllKeys().iterator().next();
-                LTColorCache.put(pos, firstTileId);
-            } else {
-                ListTag childrenList = contentTag.getList("children", 10);
-                for (int j = 0; j < childrenList.size(); j++) {
-                    CompoundTag wrapper = childrenList.getCompound(j);
-                    if (wrapper.contains("tiles", 10)) {
-                        CompoundTag tiles = wrapper.getCompound("tiles");
-                        for (String tileId : tiles.getAllKeys()) {
-                            if (tiles.get(tileId) instanceof ListTag) {
-                                LTColorCache.put(pos, tileId);
-                                return;
-                            }
-                        }
-                    }
+                put(pos, firstTileId);
+                return;
+            }
+
+            ListTag childrenList = contentTag.getList("children", Tag.TAG_COMPOUND);
+            for (int j = 0; j < childrenList.size(); j++) {
+                CompoundTag wrapper = childrenList.getCompound(j);
+                CompoundTag tiles = wrapper.getCompound("tiles");
+                if (!tiles.isEmpty()) {
+                    String firstTileId = tiles.getAllKeys().iterator().next();
+                    put(pos, firstTileId);
+                    return;
                 }
             }
+
+            LOGGER.warn("No tile found at {}", pos);
+
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to extract LT color at {}", pos, e);
         }
     }
 
     //Used for converting string to BlockState
     public static BlockState parseBlockStateString(String blockStateStr) {
         try {
+            if (blockStateStr == null || blockStateStr.isEmpty()) {
+                LOGGER.warn("null blockStateStr");
+                return Blocks.AIR.defaultBlockState();
+            }
             //LOGGER.warn(blockStateStr);
             //sometimes the blockStateStr could be "littletiles:missing" (mostly caused by missing other mod), temporarily convert to stone
             if(blockStateStr.equals("littletiles:missing")){
@@ -129,6 +135,9 @@ public class LTColorCache {
         }
     }
 
+    /**
+     * Get size of cache
+     */
     public static int getCacheSize(){
         if(chunkColorMap != null){
             return chunkColorMap.size();
@@ -136,27 +145,14 @@ public class LTColorCache {
         return 0;
     }
 
-    public static void testPut(BlockPos pos, String blockStr){
-        ChunkPos chunkPos = new ChunkPos(pos);
-        BlockState convertedState = parseBlockStateString(blockStr);
-        if(convertedState != null){
-            chunkColorMap
-                    .computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
-                    .put(pos.immutable(), convertedState);
-        }else{
-            LOGGER.error("Fail to convert to BlockState for testing at: " + pos);
-        }
-    }
-
 
     /**
      * Retrieve color data (returns null if missing)
      */
-    public static BlockState getTrueColor(BlockPos pos) {
+    public static BlockState getBlockStateAt(BlockPos pos) {
         ChunkPos chunkPos = new ChunkPos(pos);
         Map<BlockPos, BlockState> innerMap = chunkColorMap.get(chunkPos);
         if (innerMap != null) {
-
             return innerMap.getOrDefault(pos,null);
         }
         return null;
