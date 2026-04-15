@@ -1,6 +1,6 @@
-package com.deepseasaltyfish.BeDhCompat.util;
+package com.deepseasaltyfish.BeLodCompat.util;
 
-import com.deepseasaltyfish.BeDhCompat.config.ModConfigs;
+import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

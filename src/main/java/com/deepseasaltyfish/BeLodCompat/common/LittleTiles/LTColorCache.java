@@ -1,6 +1,6 @@
-package com.deepseasaltyfish.BeDhCompat.common.LittleTiles;
+package com.deepseasaltyfish.BeLodCompat.common.LittleTiles;
 
-import com.deepseasaltyfish.BeDhCompat.util.DebugLogger;
+import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;

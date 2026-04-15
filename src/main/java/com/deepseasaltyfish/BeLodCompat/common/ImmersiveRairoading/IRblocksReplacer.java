@@ -1,6 +1,6 @@
-package com.deepseasaltyfish.BeDhCompat.common.LittleTiles;
+package com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading;
 
-import com.deepseasaltyfish.BeDhCompat.util.DebugLogger;
+import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.interfaces.block.IDhApiBlockStateWrapper;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -14,32 +14,35 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class LTblocksReplacer extends DhApiChunkProcessingEvent {//TODO:colorize and specially handel blocks containing glass/light/liquid tiles
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTblocksReplacer.class);
+public class IRblocksReplacer extends DhApiChunkProcessingEvent {
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(IRblocksReplacer.class);
     private static final AtomicBoolean DEAD = new AtomicBoolean(false);
-    private static String extractBaseId(String name) {
+
+    private static String IRextractBaseId(String name) {
         int cut = name.indexOf(':');
         if (cut == -1) return name;
-        int end = name.indexOf('_', cut + 1);
-        return end == -1 ? name.substring(cut + 1)
-                : name.substring(0, end);
+        int second = name.indexOf('_', cut + 1);
+        if (second == -1) return name;
+        int third  = name.indexOf('_', second + 1);
+        return third == -1 ? name.substring(0, second)
+                : name.substring(0, third);
     }
 
     @Override
-    public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
-    {
+    public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e) {
         if (DEAD.get()) return;
 
         IDhApiBlockStateWrapper current = e.value.currentBlock;
-        String base = extractBaseId(current.getSerialString());
-        if (!base.equals("littletiles:tiles")) return;
+        String base = IRextractBaseId(current.getSerialString());
+        if (!"immersiverailroading:block_rail".equals(base) && !"immersiverailroading:block_rail_gag".equals(base)) return;
 
         BlockPos pos = new BlockPos((e.value.chunkX << 4) + e.value.relativeBlockPosX,
                 e.value.blockPosY,
                 (e.value.chunkZ << 4) + e.value.relativeBlockPosZ);
 
-        BlockState state = LTColorCache.getBlockStateAt(pos);
-        if (state == null) state = Blocks.AIR.defaultBlockState();
+//        BlockState state = IRColorCache.getColor(pos);
+//        if (state == null) state = Blocks.SOUL_SAND.defaultBlockState();
+        BlockState state = Blocks.SOUL_SAND.defaultBlockState();
         ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
         try {
             IDhApiBlockStateWrapper wrapper = DhApi.Delayed.wrapperFactory

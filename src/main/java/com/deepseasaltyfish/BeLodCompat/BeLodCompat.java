@@ -1,8 +1,8 @@
-package com.deepseasaltyfish.BeDhCompat;
+package com.deepseasaltyfish.BeLodCompat;
 
-import com.deepseasaltyfish.BeDhCompat.common.ImmersiveRairoading.IRblocksReplacer;
-import com.deepseasaltyfish.BeDhCompat.common.LittleTiles.LTblocksReplacer;
-import com.deepseasaltyfish.BeDhCompat.config.ModConfigs;
+import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRblocksReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTblocksReplacer;
+import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -18,15 +18,15 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/mods.toml file
-@Mod(BeDhCompat.MODID)
-public class BeDhCompat
+@Mod(BeLodCompat.MODID)
+public class BeLodCompat
 {
     // Define mod id in a common place for everything to reference
-    public static final String MODID = "be_dh_compat";
+    public static final String MODID = "be_lod_compat";
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public BeDhCompat(FMLJavaModLoadingContext context)
+    public BeLodCompat(FMLJavaModLoadingContext context)
     {
         IEventBus modEventBus = context.getModEventBus();
         modEventBus.addListener(this::commonSetup);

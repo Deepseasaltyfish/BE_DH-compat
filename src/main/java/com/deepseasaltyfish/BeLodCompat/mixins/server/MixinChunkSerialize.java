@@ -1,7 +1,7 @@
-package com.deepseasaltyfish.BeDhCompat.mixins.server;
+package com.deepseasaltyfish.BeLodCompat.mixins.server;
 
 
-import com.deepseasaltyfish.BeDhCompat.common.LittleTiles.LTColorCache;
+import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTColorCache;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;

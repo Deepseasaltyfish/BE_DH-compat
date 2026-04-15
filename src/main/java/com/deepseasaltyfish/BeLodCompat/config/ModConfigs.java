@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeDhCompat.config;
+package com.deepseasaltyfish.BeLodCompat.config;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -29,7 +29,7 @@ public class ModConfigs {
     }
 
     public static void register() {
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, COMMON_SPEC, "bedhcompat-common.toml");
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, COMMON_SPEC, "belodcompat-common.toml");
     }
 
     public static boolean isDebugLogging() {

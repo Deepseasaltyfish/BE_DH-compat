@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.deepseasaltyfish.BeDhCompat.mixins",
+  "package": "com.deepseasaltyfish.BeLodCompat.mixins",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "server.MixinChunkSerialize",
@@ -16,5 +16,5 @@
   "injectors": {
     "defaultRequire": 1
   },
-  "refmap": "be_dh_compat.refmap.json"
+  "refmap": "be_lod_compat.refmap.json"
 }

@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeDhCompat.mixins.distantHorizon;
+package com.deepseasaltyfish.BeLodCompat.mixins.distantHorizon;
 
 import com.seibel.distanthorizons.core.util.LodUtil;
 import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.BlockStateWrapper;//emm should not need to mixin fabric side
