@@ -1,1 +1,2 @@
--0.1-1.20.1 initial support for LittleTiles BLockEntities
+-0.1-1.20.1 initial support for LittleTiles and ImmersiveRailroading BLockEntities
+-0.2-1.20.1 refactor mod id and mod name

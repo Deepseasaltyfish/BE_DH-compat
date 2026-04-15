@@ -125,7 +125,7 @@ public class LTColorCache {
                 blockName = blockStateStr;
             }
             // Retrieve the Block
-            ResourceLocation blockId = new ResourceLocation(blockName);
+            ResourceLocation blockId = ResourceLocation.parse(blockName);
 
             Block block = BuiltInRegistries.BLOCK.get(blockId);
 
