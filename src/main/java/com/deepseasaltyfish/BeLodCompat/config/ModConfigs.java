@@ -1,34 +1,17 @@
 package com.deepseasaltyfish.BeLodCompat.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
-import org.apache.commons.lang3.tuple.Pair;
-
 public class ModConfigs {
-    public static final String CONFIG_FILE_NAME = "belodcompat-common.toml";
+    @CfgConfig.Comment("Enable debug logging")
+    public static volatile boolean debugLogging = false;
 
-    public static class Common {
-        public final ModConfigSpec.BooleanValue debugLogging;
+    @CfgConfig.Comment("If true, replace all Immersive Railroading rails with the block specified in 'overrideBlockId'")
+    public static volatile boolean overrideIrRailBlock = false;
 
-        Common(ModConfigSpec.Builder builder) {
-            builder.comment("Common settings")
-                    .push("common");
-            debugLogging = builder
-                    .comment("Enable debug logging")
-                    .define("debugLogging", false);
-            builder.pop();
-        }
-    }
+    @CfgConfig.Comment("Block ID to replace IR rails with (e.g., 'minecraft:stone', 'minecraft:diamond_block')." +
+            "If the ID is invalid or the block does not exist, falls back to 'minecraft:soul_sand'.")
+    public static volatile String overrideIrRailBlockId = "minecraft:soul_sand";
 
-    public static final Common COMMON;
-    public static final ModConfigSpec COMMON_SPEC;
-
-    static {
-        final Pair<Common, ModConfigSpec> specPair = new ModConfigSpec.Builder().configure(Common::new);
-        COMMON_SPEC = specPair.getRight();
-        COMMON = specPair.getLeft();
-    }
-
-    public static boolean isDebugLogging() {
-        return COMMON.debugLogging.get();
+    public static void register() {
+        CfgConfig.register(ModConfigs.class, "belodcompat.cfg");
     }
 }

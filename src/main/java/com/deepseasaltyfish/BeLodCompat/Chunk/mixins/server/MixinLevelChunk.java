@@ -1,6 +1,7 @@
-package com.deepseasaltyfish.BeLodCompat.mixins.server;
+package com.deepseasaltyfish.BeLodCompat.Chunk.mixins.server;
 
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTColorCache;
+import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -17,8 +18,8 @@ public class MixinLevelChunk {
         if (!loaded) {
             try{
                 ChunkPos chunkPos = ((LevelChunk)(Object)this).getPos();
-                LTColorCache.removeChunk(chunkPos);
-//                IRColorCache.removeChunk(chunkPos);
+                LTBlockDataCache.removeChunk(chunkPos);
+                IRBlockDataCache.removeChunk(chunkPos);
             }catch (Exception e){
                 LOGGER.error("Fail to remove cache at chunk " + this, e);
             }
