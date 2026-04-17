@@ -74,7 +74,7 @@ public class IRBlockDataCache {
 
     private static BlockState parseBlockStateString(String blockStateStr, BlockPos pos) {
         if (blockStateStr == null || blockStateStr.isEmpty()) {
-            LOGGER.error("Found null blockStateString at {}", pos);//TODO:IR side cache issue
+            LOGGER.debug("Found null blockStateString at {}", pos);//TODO:IR side cache issue
             return Blocks.AIR.defaultBlockState();
         }
         try {
