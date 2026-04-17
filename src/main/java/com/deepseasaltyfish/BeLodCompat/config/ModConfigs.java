@@ -1,38 +1,17 @@
 package com.deepseasaltyfish.BeLodCompat.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import org.apache.commons.lang3.tuple.Pair;
-
 public class ModConfigs {
-    public static class Common {
-        public final ForgeConfigSpec.BooleanValue debugLogging;
+    @CfgConfig.Comment("Enable debug logging")
+    public static volatile boolean debugLogging = false;
 
-        Common(ForgeConfigSpec.Builder builder) {
-            builder.comment("Common settings")
-                    .push("common");
-            debugLogging = builder
-                    .comment("Enable debug logging")
-                    .define("debugLogging", false);
-            builder.pop();
-        }
-    }
+    @CfgConfig.Comment("If true, replace all Immersive Railroading rails with the block specified in 'overrideBlockId'")
+    public static volatile boolean overrideIrRailBlock = false;
 
-    public static final Common COMMON;
-    public static final ForgeConfigSpec COMMON_SPEC;
-
-    static {
-        final Pair<Common, ForgeConfigSpec> specPair = new ForgeConfigSpec.Builder().configure(Common::new);
-        COMMON_SPEC = specPair.getRight();
-        COMMON = specPair.getLeft();
-    }
+    @CfgConfig.Comment("Block ID to replace IR rails with (e.g., 'minecraft:stone', 'minecraft:diamond_block')." +
+            "If the ID is invalid or the block does not exist, falls back to 'minecraft:soul_sand'.")
+    public static volatile String overrideIrRailBlockId = "minecraft:soul_sand";
 
     public static void register() {
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, COMMON_SPEC, "belodcompat-common.toml");
-    }
-
-    public static boolean isDebugLogging() {
-        return COMMON.debugLogging.get();
+        CfgConfig.register(ModConfigs.class, "belodcompat.cfg");
     }
 }

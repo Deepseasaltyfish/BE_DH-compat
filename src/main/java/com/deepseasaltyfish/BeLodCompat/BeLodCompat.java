@@ -1,13 +1,20 @@
 package com.deepseasaltyfish.BeLodCompat;
 
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRblocksReplacer;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTblocksReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.config.CfgConfig;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
+import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
+import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -36,12 +43,8 @@ public class BeLodCompat
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-
-        LTblocksReplacer LTReplacer = new LTblocksReplacer();
-        DhApi.events.bind(DhApiChunkProcessingEvent.class, LTReplacer);
-
-        IRblocksReplacer IRReplacer = new IRblocksReplacer();
-        DhApi.events.bind(DhApiChunkProcessingEvent.class, IRReplacer);
+        BlockReplacer blockReplacer = new BlockReplacer();
+        DhApi.events.bind(DhApiChunkProcessingEvent.class, blockReplacer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
@@ -58,5 +61,13 @@ public class BeLodCompat
         public static void onClientSetup(FMLClientSetupEvent event)
         {
         }
+    }
+
+    @SubscribeEvent
+        public void onConfigReload(CfgConfig.ReloadEvent event) {
+        boolean newOverride = ModConfigs.overrideIrRailBlock;
+        String newBlockId = ModConfigs.overrideIrRailBlockId;
+        LOGGER.info("Config reload event received");
+        BlockReplacer.updateConfig(newOverride, newBlockId);
     }
 }

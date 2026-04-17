@@ -4,7 +4,7 @@ import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DebugLogger {
+public class DebugLogger {//TODO: we have some big problem for logging... sometimes it doesnt output, need to solve later
     private final Logger logger;
 
     private DebugLogger(Class<?> clazz) {
@@ -16,25 +16,25 @@ public class DebugLogger {
     }
 
     public void debug(String msg) {
-        if (ModConfigs.isDebugLogging()) {
+        if (ModConfigs.debugLogging) {
             logger.debug(msg);
         }
     }
 
     public void debug(String format, Object arg) {
-        if (ModConfigs.isDebugLogging()) {
+        if (ModConfigs.debugLogging) {
             logger.debug(format, arg);
         }
     }
 
     public void debug(String format, Object... arguments) {
-        if (ModConfigs.isDebugLogging()) {
+        if (ModConfigs.debugLogging) {
             logger.debug(format, arguments);
         }
     }
 
     public void debug(String msg, Throwable t) {
-        if (ModConfigs.isDebugLogging()) {
+        if (ModConfigs.debugLogging) {
             logger.debug(msg, t);
         }
     }

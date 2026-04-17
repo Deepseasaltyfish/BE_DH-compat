@@ -3,9 +3,7 @@ package com.deepseasaltyfish.BeLodCompat.common.LittleTiles;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
@@ -17,15 +15,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class LTColorCache {
+public class LTBlockDataCache {
     //TODO: we should store these cache in region instead of generate them frequently
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTColorCache.class);
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTBlockDataCache.class);
 
     // Main cache: each chunk maps to a BlockPos -> LTBlockData (BlockState + color)
     private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkColorMap = new ConcurrentHashMap<>();
 
     /**
-     * ARGB format
+     * RGBA format
      */
     private static class LTBlockData {
         private final BlockState blockState;
@@ -40,15 +38,20 @@ public class LTColorCache {
         int getColor() { return color; }
     }
 
-    public static void extractLTColor(BlockPos pos, CompoundTag contentTag) {
+    /**
+     * Extract color from LT content tile NBT and cache it.
+     * @param pos block position
+     * @param contentTag the block entity NBT (content tag of tiles)
+     * @return true if successfully cached, false if fallback used
+     */
+    public static boolean extractLTColor(BlockPos pos, CompoundTag contentTag) {
         try {
             CompoundTag tilesTag = contentTag.getCompound("tiles");
             if (!tilesTag.isEmpty()) {
                 String firstTileId = tilesTag.getAllKeys().iterator().next();
-                CompoundTag tileCompound = tilesTag.getCompound(firstTileId);
-                int color = extractColorFromTile(tileCompound);
-                put(pos, firstTileId, color);
-                return;
+                Tag tileData = tilesTag.get(firstTileId);  // This is a ListTag
+                int color = extractColorFromTileData(tileData);
+                return put(pos, firstTileId, color);
             }
 
             ListTag childrenList = contentTag.getList("children", Tag.TAG_COMPOUND);
@@ -57,59 +60,75 @@ public class LTColorCache {
                 CompoundTag tiles = wrapper.getCompound("tiles");
                 if (!tiles.isEmpty()) {
                     String firstTileId = tiles.getAllKeys().iterator().next();
-                    CompoundTag tileCompound = tiles.getCompound(firstTileId);
-                    int color = extractColorFromTile(tileCompound);
-                    put(pos, firstTileId, color);
-                    return;
+                    Tag tileData = tiles.get(firstTileId);
+                    int color = extractColorFromTileData(tileData);
+                    return put(pos, firstTileId, color);
                 }
             }
 
             LOGGER.error("No tile found at {}", pos);
-
+            return false;
         } catch (Exception e) {
             LOGGER.error("Failed to extract LT color at {}", pos, e);
+            return false;
         }
     }
 
     /**
-     * get color from CompoundTag in tile (format: 0xBBGGRRAA)
+     * Extracts the color integer from LittleTiles tile data.
+     * The tile data is a ListTag where the first element is an IntArrayTag containing a single integer (the color).
      */
-    private static int extractColorFromTile(CompoundTag tileCompound) {//红色00 00 FF,绿色为00 FF 00,蓝色FF 00 00,黄色00 FF FF，FF 00 FF洋红,FF FF 00青绿色
-        int packed;
-        if (tileCompound.contains("color", Tag.TAG_INT)) {
-            packed = tileCompound.getInt("color");
-        } else if (tileCompound.contains("c", Tag.TAG_INT)) {
-            packed = tileCompound.getInt("c");
-        } else {
-            LOGGER.debug("empty color tag:" + tileCompound);
-            return 0; // no color, full transparent
-        }
-        return bgrAlphaToArgb(packed);
-    }
-
-    /**
-     * Convert LittleTiles 0xBBGGRRAA format to ARGB (0xAARRGGBB)
-     */
-    private static int bgrAlphaToArgb(int bgra) {
-        int b = (bgra >> 24) & 0xFF;
-        int g = (bgra >> 16) & 0xFF;
-        int r = (bgra >> 8) & 0xFF;
-        int a = bgra & 0xFF;
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    /**
-     * Used for converting string to BlockState
-     */
-    public static BlockState parseBlockStateString(String blockStateStr, BlockPos pos) {
-        try {
-            if (blockStateStr == null || blockStateStr.isEmpty()) {
-                LOGGER.error("null blockStateString at " + pos);
-                return Blocks.AIR.defaultBlockState();
+    private static int extractColorFromTileData(Tag tileData) {
+        if (tileData instanceof ListTag list && !list.isEmpty()) {
+            Tag first = list.get(0);
+            if (first instanceof IntArrayTag intArray && intArray.getAsIntArray().length > 0) {
+                int packed = intArray.getAsIntArray()[0];
+                return argbToRgba(packed);
             }
+        }
+        LOGGER.debug("No valid color found in tile data: {}", tileData);
+        return 0;
+    }
+
+    /**
+     * 将 ARGB 格式的颜色值转换为 RGBA 格式。
+     *
+     * <p>输入格式为 0xAARRGGBB（Android/Windows 标准），输出格式为 0xRRGGBBAA（OpenGL/RGBA 标准）。
+     *
+     * @param argbColor ARGB 格式的颜色值，其中：
+     * <ul>
+     *  <li>bits 31-24: Alpha（透明度）</li>
+     *  <li>bits 23-16: Red（红色）</li>
+     *  <li>bits 15-8:  Green（绿色）</li>
+     *  <li>bits 7-0:   Blue（蓝色）</li>
+     * </ul>
+     * @return RGBA 格式的颜色值，其中：
+     * <ul>
+     *  <li>bits 31-24: Red（红色）</li>
+     *  <li>bits 23-16: Green（绿色）</li>
+     *  <li>bits 15-8:  Blue（蓝色）</li>
+     *  <li>bits 7-0:   Alpha（透明度）</li>
+     * </ul>
+     *
+     */
+    private static int argbToRgba(int argbColor) {
+        int alpha = (argbColor >> 24) & 0xFF;
+        int red   = (argbColor >> 16) & 0xFF;
+        int green = (argbColor >> 8)  & 0xFF;
+        int blue  = argbColor & 0xFF;
+
+        return (red << 24) | (green << 16) | (blue << 8) | alpha;
+    }
+
+    public static BlockState parseBlockStateString(String blockStateStr, BlockPos pos) {
+        if (blockStateStr == null || blockStateStr.isEmpty()) {
+            LOGGER.error("null blockStateString at {}", pos);
+            return Blocks.AIR.defaultBlockState();
+        }
+        try {
             //sometimes the blockStateStr could be "littletiles:missing" (mostly caused by missing other mod), temporarily convert to stone
             if(blockStateStr.equals("littletiles:missing")){
-                LOGGER.debug("find LT \"littletiles:missing\" value at " + pos + ", converted to stone");
+                LOGGER.debug("Found LT \"littletiles:missing\" value at {}, converted to stone", pos);
                 return Blocks.STONE.defaultBlockState();
             }
 
@@ -126,9 +145,7 @@ public class LTColorCache {
             }
             // Retrieve the Block
             ResourceLocation blockId = ResourceLocation.parse(blockName);
-
             Block block = BuiltInRegistries.BLOCK.get(blockId);
-
             BlockState state = block.defaultBlockState();
 
             // Parse properties and apply values
@@ -155,7 +172,7 @@ public class LTColorCache {
             return state;
 
         } catch (Exception e) {
-            LOGGER.error("Failed to parse BlockState string: " + blockStateStr + " at " + pos, e);
+            LOGGER.error("Failed to parse LT BlockState string {} at {}",blockStateStr, pos, e);
             return Blocks.AIR.defaultBlockState(); // fallback
         }
     }
@@ -165,43 +182,32 @@ public class LTColorCache {
         return state.setValue((Property<T>) property, (T) value);
     }
 
-    /**
-     * Insert a color mapping (with color extracted from tile NBT)
-     */
-    public static void put(BlockPos pos, String blockStr, int color) {
+    public static boolean put(BlockPos pos, String blockStr, int color) {
         ChunkPos chunkPos = new ChunkPos(pos);
         BlockState convertedState = parseBlockStateString(blockStr, pos);
         if(convertedState != null){
             chunkColorMap
                     .computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
                     .put(pos.immutable(), new LTBlockData(convertedState, color));
+            return true;
         }else{
-            LOGGER.error("Fail to convert to BlockState for LT at: " + pos);
+            LOGGER.error("Fail to convert to BlockState for LT at {}", pos);
+            return false;
         }
     }
 
     /**
-     * Insert a color mapping (legacy, no color, default 0)
-     */
-    public static void put(BlockPos pos, String blockStr) {
-        put(pos, blockStr, 0);
-    }
-
-    /**
-     * Get size of cache
-     */
-    public static int getCacheSize(){
-        if(chunkColorMap != null){
-            return chunkColorMap.size();
-        }
-        return 0;
-    }
-
-
-    /**
-     * Retrieve block state (returns null if missing)
+     * Retrieves the cached BlockState for the given position.
+     * <p>
+     * This method is called concurrently from DH's LOD Builder threads
+     * ("DH-LOD Builder Thread[x]"). The implementation must be thread-safe.
+     * The underlying cache uses ConcurrentHashMap, which is safe for concurrent reads.
+     *
+     * @param pos the block position
+     * @return the cached BlockState, or null if not found
      */
     public static BlockState getBlockStateAt(BlockPos pos) {
+        if (pos == null) return null;
         ChunkPos chunkPos = new ChunkPos(pos);
         Map<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
         if (innerMap != null) {
@@ -212,7 +218,7 @@ public class LTColorCache {
     }
 
     /**
-     * Retrieve color (ARGB) at position, returns 0 if missing
+     * Retrieve color (RGBA) at position, returns 0 if missing
      */
     public static int getColorAt(BlockPos pos) {
         ChunkPos chunkPos = new ChunkPos(pos);
@@ -224,26 +230,52 @@ public class LTColorCache {
         return 0;
     }
 
-    /**
-     * Check if a BlockPos has cached data
-     */
+    public static void removeChunk(ChunkPos chunkPos) {
+        if (chunkPos == null) return;
+        if(chunkColorMap.get(chunkPos) != null)LOGGER.debug("remove chunk at" + chunkPos);
+        chunkColorMap.remove(chunkPos);
+    }
+
+    public static void clearAll() {
+        chunkColorMap.clear();
+    }
+
     public static boolean contains(BlockPos pos) {
+        if (pos == null) return false;
         ChunkPos chunkPos = new ChunkPos(pos);
         Map<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
         return innerMap != null && innerMap.containsKey(pos);
     }
 
-    /**
-     * Clear cache for a specific chunk (called on chunk unload)
-     */
-    public static void removeChunk(ChunkPos chunkPos) {
-        chunkColorMap.remove(chunkPos);
+    public static int getCacheSize() {
+        return chunkColorMap.size();
     }
 
-    /**
-     * Clear all cache (mostly when world closes)
-     */
-    public static void clearAll() {
-        chunkColorMap.clear();
+    //debug
+
+    public static String dumpAllEntries() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== LTBlockDataCache Dump ===\n");
+        int total = 0;
+        for (Map.Entry<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkEntry : chunkColorMap.entrySet()) {
+            ChunkPos cp = chunkEntry.getKey();
+            sb.append("Chunk ").append(cp.x).append(", ").append(cp.z).append(":\n");
+            for (Map.Entry<BlockPos, LTBlockData> entry : chunkEntry.getValue().entrySet()) {
+                BlockPos pos = entry.getKey();
+                LTBlockData data = entry.getValue();
+                BlockState state = data.getBlockState();
+                int color = data.getColor();
+                ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                sb.append("  ").append(pos.getX()).append(", ").append(pos.getY()).append(", ").append(pos.getZ())
+                        .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", color)).append("\n");
+                total++;
+            }
+        }
+        if (chunkColorMap.isEmpty()) {
+            sb.append("(empty)\n");
+        } else {
+            sb.append("Total entries: ").append(total).append("\n");
+        }
+        return sb.toString();
     }
 }

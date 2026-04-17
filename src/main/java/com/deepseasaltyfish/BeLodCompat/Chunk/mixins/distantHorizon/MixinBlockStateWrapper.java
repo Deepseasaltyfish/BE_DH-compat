@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeLodCompat.mixins.distantHorizon;
+package com.deepseasaltyfish.BeLodCompat.Chunk.mixins.distantHorizon;
 
 import com.seibel.distanthorizons.core.util.LodUtil;
 import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.BlockStateWrapper;//emm should not need to mixin fabric side
@@ -12,8 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import javax.annotation.Nullable;
 
+@Deprecated
 @Mixin(BlockStateWrapper.class)
-public abstract class MixinBlockStateWrapper {
+public abstract class MixinBlockStateWrapper {//TODO: we will remove this mixin after DH official API get ready
     @Final
     @Shadow(remap = false)
     @Nullable
