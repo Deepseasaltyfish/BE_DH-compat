@@ -50,6 +50,8 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
         } else if (IrBaseId.equals("immersiverailroading:block_rail") || IrBaseId.equals("immersiverailroading:block_rail_gag")) {
             state = IRBlockDataCache.getBlockStateAt(pos);
         }else {
+            LTBlockDataCache.removeAt(pos);
+            IRBlockDataCache.removeAt(pos);
             return;
         }
 

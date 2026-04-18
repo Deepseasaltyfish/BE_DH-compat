@@ -83,7 +83,7 @@ public class LTBlockDataCache {
             Tag first = list.get(0);
             if (first instanceof IntArrayTag intArray && intArray.getAsIntArray().length > 0) {
                 int packed = intArray.getAsIntArray()[0];
-                return argbToRgba(packed);
+                return packed;
             }
         }
         LOGGER.debug("No valid color found in tile data: {}", tileData);
@@ -111,7 +111,7 @@ public class LTBlockDataCache {
      * </ul>
      *
      */
-    private static int argbToRgba(int argbColor) {
+    public static int argbToRgba(int argbColor) {
         int alpha = (argbColor >> 24) & 0xFF;
         int red   = (argbColor >> 16) & 0xFF;
         int green = (argbColor >> 8)  & 0xFF;
@@ -236,6 +236,18 @@ public class LTBlockDataCache {
         chunkColorMap.remove(chunkPos);
     }
 
+    public static void removeAt(BlockPos pos) {
+        if (pos == null) return;
+        ChunkPos chunkPos = new ChunkPos(pos);
+        Map<BlockPos, LTBlockData> inner = chunkColorMap.get(chunkPos);
+        if (inner != null) {
+            inner.remove(pos);
+            if (inner.isEmpty()) {
+                chunkColorMap.remove(chunkPos);
+            }
+        }
+    }
+
     public static void clearAll() {
         chunkColorMap.clear();
     }
@@ -267,7 +279,7 @@ public class LTBlockDataCache {
                 int color = data.getColor();
                 ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                 sb.append("  ").append(pos.getX()).append(", ").append(pos.getY()).append(", ").append(pos.getZ())
-                        .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", color)).append("\n");
+                        .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", argbToRgba(color))).append("\n");
                 total++;
             }
         }

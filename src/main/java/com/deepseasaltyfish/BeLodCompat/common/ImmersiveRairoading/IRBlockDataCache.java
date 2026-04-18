@@ -139,6 +139,18 @@ public class IRBlockDataCache {
         chunkColorMap.remove(chunkPos);
     }
 
+    public static void removeAt(BlockPos pos) {
+        if (pos == null) return;
+        ChunkPos chunkPos = new ChunkPos(pos);
+        Map<BlockPos, IRBlockData> inner = chunkColorMap.get(chunkPos);
+        if (inner != null) {
+            inner.remove(pos);
+            if (inner.isEmpty()) {
+                chunkColorMap.remove(chunkPos);
+            }
+        }
+    }
+
     public static void clearAll() {
         chunkColorMap.clear();
     }
