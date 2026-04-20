@@ -45,13 +45,14 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
         );
         BlockState state = null;
 
-        if (LtBaseId.equals("littletiles:tiles")) {
+        if (LtBaseId.equals("littletiles:tiles")) {//TODO: we still get null sometimes, though fine most of the time
             state = LTBlockDataCache.getBlockStateAt(pos);
         } else if (IrBaseId.equals("immersiverailroading:block_rail") || IrBaseId.equals("immersiverailroading:block_rail_gag")) {
             state = IRBlockDataCache.getBlockStateAt(pos);
         }else {
-            LTBlockDataCache.removeAt(pos);
-            IRBlockDataCache.removeAt(pos);
+            //not sure but these may make null value of getBlockStateAt happens much more
+//            LTBlockDataCache.removeAt(pos);
+//            IRBlockDataCache.removeAt(pos);
             return;
         }
 
