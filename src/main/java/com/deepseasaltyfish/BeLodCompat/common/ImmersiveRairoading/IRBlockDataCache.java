@@ -128,12 +128,12 @@ public class IRBlockDataCache {
         Map<BlockPos, IRBlockData> innerMap = chunkColorMap.get(chunkPos);
         if (innerMap == null) {
             LOGGER.debug("No IRBlockData at chunk {} block {} (No chunk data)", chunkPos, pos);
-            return null;
+            return Blocks.BLACK_WOOL.defaultBlockState();
         }
         IRBlockData data = innerMap.get(pos);
         if (data == null) {
             LOGGER.debug("No IRBlockData at chunk {} block {}", chunkPos, pos);
-            return null;
+            return Blocks.RED_WOOL.defaultBlockState();
         }
         return data.getBlockState();
     }
@@ -176,24 +176,38 @@ public class IRBlockDataCache {
     public static String dumpAllEntries() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== IRBlockDataCache Dump ===\n");
+
+        // 第一次遍历：统计总数
         int total = 0;
+        for (ConcurrentHashMap<BlockPos, IRBlockData> innerMap : chunkColorMap.values()) {
+            total += innerMap.size();
+        }
+
+        if (total == 0) {
+            sb.append("(empty)\n");
+            return sb.toString();
+        }
+
+        if (total > 100) {
+            sb.append("Total entries: ").append(total).append("\n");
+            return sb.toString();
+        }
+
+        // 第二次遍历：输出详细信息（当总数 ≤ 100 时）
         for (Map.Entry<ChunkPos, ConcurrentHashMap<BlockPos, IRBlockData>> chunkEntry : chunkColorMap.entrySet()) {
+            ConcurrentHashMap<BlockPos, IRBlockData> innerMap = chunkEntry.getValue();
+            if (innerMap.isEmpty()) continue; // 跳过空区块
             ChunkPos cp = chunkEntry.getKey();
             sb.append("Chunk ").append(cp.x).append(", ").append(cp.z).append(":\n");
-            for (Map.Entry<BlockPos, IRBlockData> entry : chunkEntry.getValue().entrySet()) {
+            for (Map.Entry<BlockPos, IRBlockData> entry : innerMap.entrySet()) {
                 BlockPos pos = entry.getKey();
                 BlockState state = entry.getValue().getBlockState();
                 ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                 sb.append("  ").append(pos.getX()).append(", ").append(pos.getY()).append(", ").append(pos.getZ())
                         .append(" -> ").append(rl).append("\n");
-                total++;
             }
         }
-        if (chunkColorMap.isEmpty()) {
-            sb.append("(empty)\n");
-        } else {
-            sb.append("Total entries: ").append(total).append("\n");
-        }
+        sb.append("Total entries: ").append(total).append("\n");
         return sb.toString();
     }
 }

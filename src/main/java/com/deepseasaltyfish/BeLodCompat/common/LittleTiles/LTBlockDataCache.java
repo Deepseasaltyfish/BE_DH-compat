@@ -337,12 +337,27 @@ public class LTBlockDataCache {
     public static String dumpAllEntries() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== LTBlockDataCache Dump ===\n");
+
+        // 第一次遍历：统计总数
         int total = 0;
+        for (ConcurrentHashMap<BlockPos, LTBlockData> innerMap : chunkColorMap.values()) {
+            total += innerMap.size();
+        }
+
+        if (total == 0) {
+            sb.append("(empty)\n");
+            return sb.toString();
+        }
+
+        if (total > 100) {
+            sb.append("Total entries: ").append(total).append("\n");
+            return sb.toString();
+        }
+
+        // 第二次遍历：输出详细信息（当总数 ≤ 100 时）
         for (Map.Entry<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkEntry : chunkColorMap.entrySet()) {
             ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkEntry.getValue();
-            if (innerMap.isEmpty()) {
-                continue; // 空 chunk 不输出标题
-            }
+            if (innerMap.isEmpty()) continue;
             ChunkPos cp = chunkEntry.getKey();
             sb.append("Chunk ").append(cp.x).append(", ").append(cp.z).append(":\n");
             for (Map.Entry<BlockPos, LTBlockData> entry : innerMap.entrySet()) {
@@ -353,14 +368,9 @@ public class LTBlockDataCache {
                 ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                 sb.append("  ").append(pos.getX()).append(", ").append(pos.getY()).append(", ").append(pos.getZ())
                         .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", argbToRgba(color))).append("\n");
-                total++;
             }
         }
-        if (total == 0) {
-            sb.append("(empty)\n");
-        } else {
-            sb.append("Total entries: ").append(total).append("\n");
-        }
+        sb.append("Total entries: ").append(total).append("\n");
         return sb.toString();
     }
 
