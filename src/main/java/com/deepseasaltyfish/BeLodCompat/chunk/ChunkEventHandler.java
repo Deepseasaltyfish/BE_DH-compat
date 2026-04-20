@@ -8,9 +8,11 @@ import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.deepseasaltyfish.BeLodCompat.util.WorldPathUtil;
+import com.seibel.distanthorizons.api.enums.config.EDhApiWorldCompressionMode;
+import com.seibel.distanthorizons.core.config.Config;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -65,6 +67,18 @@ public class ChunkEventHandler {
         String dimName = level.dimension().location().getPath().replace('/', '_');
         Path dbFile = worldRoot.resolve("bedhcompat").resolve(dimName + ".db");
         LOGGER.info("World root path: {}", worldRoot);
+
+        EDhApiWorldCompressionMode mode = Config.Common.LodBuilding.worldCompression.get();
+        if (mode == EDhApiWorldCompressionMode.VISUALLY_EQUAL) {
+            if (Minecraft.getInstance().player != null) {
+                Minecraft.getInstance().player.sendSystemMessage(
+                        Component.literal(
+                                "[BeLodCompat] Warning: Distant Horizons compression mode is set to VISUALLY_EQUAL. " +
+                                "For correct LittleTiles colors, please change it to MERGE_SAME_BLOCKS in DH config."
+                        )
+                );
+            }
+        }
 
         DatabaseManager.open(dbFile);
         DataBaseCache.initTable();

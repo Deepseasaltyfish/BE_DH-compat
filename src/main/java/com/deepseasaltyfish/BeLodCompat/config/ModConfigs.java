@@ -14,6 +14,9 @@ public class ModConfigs {
     @CfgConfig.Comment("Enable database caching (requires restart)")
     public static boolean enableDatabase = true;
 
+    @CfgConfig.Comment("Use asynchronous database writes (may improve performance but could lose data on crash)")
+    public static volatile boolean useAsyncDbWrite = true;
+
     public static void register() {
         CfgConfig.register(ModConfigs.class, "belodcompat.cfg");
     }

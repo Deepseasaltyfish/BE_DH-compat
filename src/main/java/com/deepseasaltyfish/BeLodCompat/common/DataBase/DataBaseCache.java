@@ -1,5 +1,6 @@
 package com.deepseasaltyfish.BeLodCompat.common.DataBase;
 
+import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
@@ -84,21 +85,13 @@ public class DataBaseCache {
                 COL_CHUNK_X + ", " + COL_CHUNK_Z + ", " +
                 COL_MOD_ID + ", " + COL_BLOCK_STATE + ", " + COL_COLOR + ", " + COL_VERSION +
                 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        DatabaseManager.executeUpdate(sql, pos.getX(), pos.getY(), pos.getZ(), chunkX, chunkZ, modId, blockStateStr, color, version);
-        LOGGER.debug("putBlockData async: mod={}, pos={}, blockState={}, color=0x{}", modId, pos, blockStateStr, Integer.toHexString(color));
-    }
-
-    public static void putBlockDataAsync(String modId, BlockPos pos, String blockStateStr, int color, int version) {
-        if (!DatabaseManager.isReady()) return;
-        int chunkX = pos.getX() >> 4;
-        int chunkZ = pos.getZ() >> 4;
-        String sql = "INSERT OR REPLACE INTO " + TABLE_NAME + " (" +
-                COL_X + ", " + COL_Y + ", " + COL_Z + ", " +
-                COL_CHUNK_X + ", " + COL_CHUNK_Z + ", " +
-                COL_MOD_ID + ", " + COL_BLOCK_STATE + ", " + COL_COLOR + ", " + COL_VERSION +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        DatabaseManager.executeUpdateAsync(sql, pos.getX(), pos.getY(), pos.getZ(), chunkX, chunkZ, modId, blockStateStr, color, version);
-        LOGGER.debug("putBlockData async: mod={}, pos={}, blockState={}, color=0x{}", modId, pos, blockStateStr, Integer.toHexString(color));
+        if (ModConfigs.useAsyncDbWrite) {
+            DatabaseManager.executeUpdateAsync(sql, pos.getX(), pos.getY(), pos.getZ(), chunkX, chunkZ, modId, blockStateStr, color, version);
+            LOGGER.debug("putBlockData async: mod={}, pos={}, blockState={}, color=0x{}", modId, pos, blockStateStr, Integer.toHexString(color));
+        } else {
+            DatabaseManager.executeUpdate(sql, pos.getX(), pos.getY(), pos.getZ(), chunkX, chunkZ, modId, blockStateStr, color, version);
+            LOGGER.debug("putBlockData sync: mod={}, pos={}, blockState={}, color=0x{}", modId, pos, blockStateStr, Integer.toHexString(color));
+        }
     }
 
     /**

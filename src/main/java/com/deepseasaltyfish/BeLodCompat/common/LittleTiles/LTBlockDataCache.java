@@ -233,9 +233,14 @@ public class LTBlockDataCache {
         chunkColorMap.computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
                 .put(pos.immutable(), new LTBlockData(convertedState, color));
 
-        // 异步写入数据库
+        // 数据库操作：仅当颜色不是 0xFFFFFFFF（默认无叠加）时才写入；如果是默认色则删除已有记录
         if (DatabaseManager.isReady()) {
-            DataBaseCache.putBlockDataAsync(MOD_ID, pos, blockStr, color, DataBaseCache.CURRENT_VERSION);
+            if (color != 0xFFFFFFFF) {
+                DataBaseCache.putBlockData(MOD_ID, pos, blockStr, color, DataBaseCache.CURRENT_VERSION);
+            } else {
+                // 如果新颜色是默认色，且数据库中有旧记录，则删除
+                DataBaseCache.removeBlockData(MOD_ID, pos);
+            }
         }
         return true;
     }
@@ -262,16 +267,9 @@ public class LTBlockDataCache {
             return Blocks.BLACK_WOOL.defaultBlockState();
         }
         LTBlockData data = innerMap.get(pos);
-//        if (data == null && DatabaseManager.isReady()) {
-//            loadChunkFromDB(chunkPos);
-//            innerMap = chunkColorMap.get(chunkPos);
-//            if (innerMap != null) {
-//                data = innerMap.get(pos);
-//            }
-//        }
         if(data == null) {
-            LOGGER.error("LT NOT FOUND AT {}", pos);
-            return Blocks.YELLOW_WOOL.defaultBlockState();
+            LOGGER.debug("No LTBlockData at chunk {} block {}", chunkPos, pos);
+            return Blocks.RED_WOOL.defaultBlockState();
         }
         return data.getBlockState();
     }
@@ -312,10 +310,10 @@ public class LTBlockDataCache {
             inner.remove(pos);
             if (inner.isEmpty()) {
                 chunkColorMap.remove(chunkPos);
-                if (DatabaseManager.isReady()) {
-                    DataBaseCache.removeBlockData(MOD_ID, pos);
-                }
             }
+        }
+        if (DatabaseManager.isReady()) {//we have to call this to make sure color cleaned completely
+            DataBaseCache.removeBlockData(MOD_ID, pos);
         }
     }
 

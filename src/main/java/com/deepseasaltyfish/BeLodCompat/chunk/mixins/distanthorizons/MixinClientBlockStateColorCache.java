@@ -30,7 +30,7 @@ public abstract class MixinClientBlockStateColorCache {//TODO: we will remove th
         int originalColor = cir.getReturnValue();
         BlockPos mcPos = new BlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
         int cachedColor = LTBlockDataCache.getColorAt(mcPos);
-        if (cachedColor != 0) {
+        if (cachedColor != 0 && cachedColor != 0xFFFFFFFF) {
             int blended = LTBlockDataCache.multiplyArgb(originalColor, cachedColor);
             bE_LOD_compat$LOGGER.debug("origin: #{}, cached: #{}, blended: #{} at {}",
                     String.format("%08X", LTBlockDataCache.argbToRgba(originalColor)),

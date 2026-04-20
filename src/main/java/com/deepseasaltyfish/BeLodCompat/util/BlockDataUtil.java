@@ -28,7 +28,6 @@ public class BlockDataUtil {
             boolean isParent = "immersiverailroading:block_rail".equals(id);
             return IRBlockDataCache.extractIRColor(pos, instanceDataTag, isParent);
         }
-        LOGGER.debug("null tag at {}", pos);
         return false;
     }
 
