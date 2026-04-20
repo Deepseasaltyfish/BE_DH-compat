@@ -1,6 +1,7 @@
 package com.deepseasaltyfish.BeLodCompat.common.LittleTiles;
 
 import com.deepseasaltyfish.BeLodCompat.common.DataBase.DataBaseCache;
+import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
@@ -16,7 +17,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 public class LTBlockDataCache {
     private static final String MOD_ID = "littletiles";
@@ -26,6 +27,9 @@ public class LTBlockDataCache {
     // Main cache: each chunk maps to a BlockPos -> LTBlockData (BlockState + color)
     private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkColorMap = new ConcurrentHashMap<>();
 
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final Map<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
+    private static final long REMOVAL_DELAY_MS = 30_000;
     /**
      * Multiply two ARGB colors.
      * RGB channels are multiplied (component-wise) and normalized to 0-255.
@@ -214,6 +218,13 @@ public class LTBlockDataCache {
 
     public static boolean put(BlockPos pos, String blockStr, int color) {
         ChunkPos chunkPos = new ChunkPos(pos);
+
+        // 取消该区块的延迟卸载任务（如果有）
+        ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
+        if (existing != null) {
+            existing.cancel(false);
+        }
+
         BlockState convertedState = parseBlockStateString(blockStr, pos);
         if (convertedState == null) {
             LOGGER.error("Fail to convert to BlockState for LT at {}", pos);
@@ -297,11 +308,20 @@ public class LTBlockDataCache {
 
     public static void removeChunkInMemory(ChunkPos chunkPos) {
         if (chunkPos == null) return;
-        if (chunkColorMap.get(chunkPos) != null) {
-            LOGGER.debug("remove chunk at" + chunkPos);
-            chunkColorMap.remove(chunkPos);
-        }
+
+        ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
+        if (existing != null) existing.cancel(false);
+
+        ScheduledFuture<?> future = scheduler.schedule(() -> {
+            Map<BlockPos, LTBlockDataCache.LTBlockData> inner = chunkColorMap.remove(chunkPos);
+            if (inner != null) {
+                LOGGER.debug("Delayed removal of chunk {} with {} entries", chunkPos, inner.size());
+            }
+            pendingRemovals.remove(chunkPos);
+        }, REMOVAL_DELAY_MS, TimeUnit.MILLISECONDS);
+        pendingRemovals.put(chunkPos, future);
     }
+
     public static void removeAt(BlockPos pos) {
         if (pos == null) return;
         ChunkPos chunkPos = new ChunkPos(pos);
@@ -318,6 +338,8 @@ public class LTBlockDataCache {
     }
 
     public static void clearAll() {
+        pendingRemovals.values().forEach(future -> future.cancel(false));
+        pendingRemovals.clear();
         chunkColorMap.clear();
     }
 

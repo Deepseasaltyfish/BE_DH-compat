@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 public class IRBlockDataCache {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
@@ -21,6 +21,9 @@ public class IRBlockDataCache {
     // Cache: chunk -> pos -> IRBlockData (BlockState only, color unused for now)
     private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, IRBlockData>> chunkColorMap = new ConcurrentHashMap<>();
 
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final Map<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
+    private static final long REMOVAL_DELAY_MS = 30_000;
     public static class IRBlockData {
         private final BlockState blockState;
 
@@ -89,6 +92,13 @@ public class IRBlockDataCache {
 
     public static boolean put(BlockPos pos, String blockStr) {
         ChunkPos chunkPos = new ChunkPos(pos);
+
+        // 取消该区块的延迟卸载任务（如果有）
+        ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
+        if (existing != null) {
+            existing.cancel(false);
+        }
+
         BlockState convertedState = parseBlockStateString(blockStr, pos);
         if (convertedState == null) {
             LOGGER.error("Fail to convert to BlockState for IR at {}", pos);
@@ -140,8 +150,18 @@ public class IRBlockDataCache {
 
     public static void removeChunkInMemory(ChunkPos chunkPos) {
         if (chunkPos == null) return;
-        if(chunkColorMap.get(chunkPos) != null)LOGGER.debug("remove chunk at" + chunkPos);
-        chunkColorMap.remove(chunkPos);
+
+        ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
+        if (existing != null) existing.cancel(false);
+
+        ScheduledFuture<?> future = scheduler.schedule(() -> {
+            Map<BlockPos, IRBlockData> inner = chunkColorMap.remove(chunkPos);
+            if (inner != null) {
+                LOGGER.debug("Delayed removal of chunk {} with {} entries", chunkPos, inner.size());
+            }
+            pendingRemovals.remove(chunkPos);
+        }, REMOVAL_DELAY_MS, TimeUnit.MILLISECONDS);
+        pendingRemovals.put(chunkPos, future);
     }
 
     public static void removeAt(BlockPos pos) {
@@ -157,6 +177,8 @@ public class IRBlockDataCache {
     }
 
     public static void clearAll() {
+        pendingRemovals.values().forEach(future -> future.cancel(false));
+        pendingRemovals.clear();
         chunkColorMap.clear();
     }
 
