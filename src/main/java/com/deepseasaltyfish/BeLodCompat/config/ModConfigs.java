@@ -11,6 +11,9 @@ public class ModConfigs {
             "If the ID is invalid or the block does not exist, falls back to 'minecraft:soul_sand'.")
     public static volatile String overrideIrRailBlockId = "minecraft:soul_sand";
 
+    @CfgConfig.Comment("Enable database caching (requires restart)")
+    public static boolean enableDatabase = true;
+
     public static void register() {
         CfgConfig.register(ModConfigs.class, "belodcompat.cfg");
     }

@@ -4,6 +4,7 @@ import com.deepseasaltyfish.BeLodCompat.common.BlockReplacer;
 import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.config.CfgConfig;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
+import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.mojang.logging.LogUtils;
@@ -39,6 +40,7 @@ public class BeLodCompat
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);
         ModConfigs.register();
+        DatabaseManager.init();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)

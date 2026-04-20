@@ -1,11 +1,12 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.deepseasaltyfish.BeLodCompat.Chunk.mixins",
+  "package": "com.deepseasaltyfish.BeLodCompat.chunk.mixins",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "distantHorizon.MixinBlockStateWrapper",
-    "distantHorizon.MixinClientBlockStateColorCache"
+    "distanthorizons.MixinBlockStateWrapper",
+    "distanthorizons.MixinClientBlockStateColorCache",
+    "MixinLevel"
   ],
   "client": [
     "client.MixinClientLevel",

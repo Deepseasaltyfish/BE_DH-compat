@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeLodCompat.Chunk.mixins.client;
+package com.deepseasaltyfish.BeLodCompat.chunk.mixins.client;
 import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -13,7 +13,7 @@ public class MixinClientLevel {
     @Inject(method = "unload", at = @At("HEAD"))
     private void onChunkUnload(LevelChunk chunk, CallbackInfo ci) {
         ChunkPos pos = chunk.getPos();
-        LTBlockDataCache.removeChunk(pos);
-        IRBlockDataCache.removeChunk(pos);
+        LTBlockDataCache.removeChunkInMemory(pos);
+        IRBlockDataCache.removeChunkInMemory(pos);
     }
 }

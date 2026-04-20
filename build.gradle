@@ -99,6 +99,10 @@ repositories {
     flatDir { dir 'libs' }
 }
 
+configurations {
+    sqlite
+}
+
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
@@ -109,6 +113,16 @@ dependencies {
     // Add the DH Api for compile time development
     compileOnly fg.deobf("maven.modrinth:DistantHorizonsApi:5.1.0") // maven
 //    compileOnly fg.deobf("blank:DistantHorizonsAPI:4.0.0-b-dev") // local Jar file, ile should be named in the format: "DistantHorizonsAPI-VERSION.jar"  IE "DistantHorizonsAPI-2.0.0a-dev.jar"
+
+    // SQLite 支持 - 排除 slf4j 传递依赖
+    implementation('org.xerial:sqlite-jdbc:3.44.1.0') {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+
+    // 给打包配置也加同样的排除
+    sqlite('org.xerial:sqlite-jdbc:3.44.1.0') {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
 
     // Add the Full DH mod for runtime use
     // Note: Don't add this with "Implementation", otherwise you may
@@ -147,6 +161,14 @@ tasks.named('processResources', ProcessResources).configure {
 
 // Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
+    // 把 sqlite-jdbc 的类和原生库打包进来
+    from {
+        configurations.sqlite.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    // 排除签名文件，避免 SecurityException
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+
     manifest {
         attributes([
                 'Specification-Title'     : mod_id,

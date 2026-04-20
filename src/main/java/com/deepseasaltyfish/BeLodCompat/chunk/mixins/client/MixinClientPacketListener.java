@@ -1,6 +1,5 @@
-package com.deepseasaltyfish.BeLodCompat.Chunk.mixins.client;
+package com.deepseasaltyfish.BeLodCompat.chunk.mixins.client;
 
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -13,6 +12,7 @@ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -22,7 +22,8 @@ import java.util.function.Consumer;
 @Mixin(ClientPacketListener.class)
 public class MixinClientPacketListener {
     //init chunk early and unload chunk late, to make sure we don't lost any data
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(MixinClientPacketListener.class);
+    @Unique
+    private static final DebugLogger bE_LOD_compat$LOGGER = DebugLogger.getLogger(MixinClientPacketListener.class);
     @Inject(method = "handleBlockEntityData", at = @At("HEAD"))
     private void onReceiveBlockEntity(ClientboundBlockEntityDataPacket packet, CallbackInfo ci) {
         CompoundTag tag = packet.getTag();
@@ -32,7 +33,7 @@ public class MixinClientPacketListener {
         ResourceLocation rl = BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(type);
         String id = rl != null ? rl.toString() : null;
         BlockPos pos = packet.getPos();
-        LOGGER.debug("onReceiveBlockEntity id: {} tag: {} at pos: {}", id, tag, pos);
+        bE_LOD_compat$LOGGER.debug("onReceiveBlockEntity id: {} tag: {} at pos: {}", id, tag, pos);
         BlockDataUtil.tryExtractBlockData(id, tag, pos);
     }
 
@@ -47,7 +48,7 @@ public class MixinClientPacketListener {
         consumer.accept((blockPos, type, tag) -> {
             ResourceLocation rl = net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(type);
             String id = rl != null ? rl.toString() : null;
-            LOGGER.debug("handleLevelChunkWithLight id: {} tag: {} at pos: {}", id, tag, blockPos);
+            bE_LOD_compat$LOGGER.debug("handleLevelChunkWithLight id: {} tag: {} at pos: {}", id, tag, blockPos);
             BlockDataUtil.tryExtractBlockData(id, tag, blockPos);
         });
     }

@@ -90,16 +90,23 @@ public class IRBlockDataCache {
     public static boolean put(BlockPos pos, String blockStr) {
         ChunkPos chunkPos = new ChunkPos(pos);
         BlockState convertedState = parseBlockStateString(blockStr, pos);
-
-        if(convertedState != null){
-            chunkColorMap
-                    .computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
-                    .put(pos.immutable(), new IRBlockDataCache.IRBlockData(convertedState));
-            return true;
-        }else{
+        if (convertedState == null) {
             LOGGER.error("Fail to convert to BlockState for IR at {}", pos);
             return false;
         }
+
+        // 获取当前内存中的旧数据
+        ConcurrentHashMap<BlockPos, IRBlockData> innerMap = chunkColorMap.get(chunkPos);
+        IRBlockData oldData = innerMap != null ? innerMap.get(pos) : null;
+        if (oldData != null && oldData.getBlockState().equals(convertedState)) {
+            // 数据相同，无需更新
+            return true;
+        }
+
+        // 更新内存缓存
+        chunkColorMap.computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
+                .put(pos.immutable(), new IRBlockData(convertedState));
+        return true;
     }
 
     /**
@@ -113,8 +120,6 @@ public class IRBlockDataCache {
      * @return the cached BlockState, or null if not found
      */
     public static BlockState getBlockStateAt(BlockPos pos) {
-        LOGGER.debug("test debug");
-        LOGGER.info("test info");
         if (pos == null) {
             LOGGER.error("IRBlockData getBlockStateAt called with null pos");
             return null;
@@ -133,7 +138,7 @@ public class IRBlockDataCache {
         return data.getBlockState();
     }
 
-    public static void removeChunk(ChunkPos chunkPos) {
+    public static void removeChunkInMemory(ChunkPos chunkPos) {
         if (chunkPos == null) return;
         if(chunkColorMap.get(chunkPos) != null)LOGGER.debug("remove chunk at" + chunkPos);
         chunkColorMap.remove(chunkPos);
