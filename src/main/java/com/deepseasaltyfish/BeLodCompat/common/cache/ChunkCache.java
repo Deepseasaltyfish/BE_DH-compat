@@ -1,8 +1,12 @@
 package com.deepseasaltyfish.BeLodCompat.common.cache;
 
+import com.deepseasaltyfish.BeLodCompat.common.DataBaseCache;
+import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
+import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.BiConsumer;
@@ -10,16 +14,15 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
- * 通用区块缓存管理器，封装了：
- * - 分区块的 ConcurrentHashMap 缓存
- * - 延迟卸载任务调度
- * - 基本增删改查操作
- * 行为与旧版 IRBlockDataCache/LTBlockDataCache 完全一致。
+ * Universal chunk cache manager, encapsulates:
+ * - Per-chunk ConcurrentHashMap cache
+ * - Delayed unload task scheduling
+ * - Basic CRUD operations
+ * Behavior is fully consistent with the old IRBlockDataCache/LTBlockDataCache.
  *
- * @param <V> 缓存值类型
+ * @param <V> cache value type
  */
 public class ChunkCache<V> {
-    // 缓存：区块 -> 位置 -> 数据
     protected final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, V>> cache = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ConcurrentHashMap<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
@@ -30,8 +33,8 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 取消指定区块的延迟卸载任务（如果存在）。
-     * 行为与旧代码中 pendingRemovals.remove + cancel 一致。
+     * Cancel the delayed unload task for the specified chunk (if exists).
+     * Behavior is consistent with pendingRemovals.remove + cancel in old code.
      */
     public void cancelRemoval(ChunkPos chunkPos) {
         ScheduledFuture<?> future = pendingRemovals.remove(chunkPos);
@@ -41,8 +44,8 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 安排延迟卸载区块（用于主动卸载，如 removeChunkInMemory）。
-     * @param onRemove 卸载时的回调（用于日志），可为 null
+     * Schedule a delayed unload for a chunk (used for active unload, e.g. removeChunkInMemory).
+     * @param onRemove callback on unload (for logging), can be null
      */
     public void scheduleRemoval(ChunkPos chunkPos, BiConsumer<ChunkPos, ConcurrentHashMap<BlockPos, V>> onRemove) {
         cancelRemoval(chunkPos);
@@ -57,33 +60,29 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 更新缓存（与旧代码 put 逻辑完全一致）：
-     * - 总是取消该区块的延迟卸载任务
-     * - 如果新旧数据相同（由 sameChecker 判定），则返回 false 且不更新内存
-     * - 否则更新内存，返回 true
-     * 注意：返回值仅表示内存是否变化，外部不应依赖它来决定数据库操作（旧代码中数据库总是执行）
+     * Update cache (fully consistent with old put logic):
+     * - Always cancel delayed unload task for the chunk
+     * - If old and new data are equal (as determined by sameChecker), return false and do not update memory
+     * - Otherwise update memory and return true
+     * Note: Return value only indicates whether memory changed; external code should not rely on it for DB operations (old code always executed DB writes)
      */
     public boolean put(BlockPos pos, V newData, BiPredicate<V, V> sameChecker) {
         ChunkPos chunkPos = new ChunkPos(pos);
-        // 1. 取消延迟卸载（与旧代码 pendingRemovals.remove + cancel 一致）
         cancelRemoval(chunkPos);
 
-        // 2. 获取或创建区块内层 Map
         ConcurrentHashMap<BlockPos, V> inner = cache.computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>());
 
-        // 3. 检查旧数据是否相同
         V oldData = inner.get(pos);
         if (oldData != null && sameChecker.test(oldData, newData)) {
-            return false; // 数据相同，不更新内存
+            return false; // data unchanged, skip memory update
         }
 
-        // 4. 更新内存
         inner.put(pos.immutable(), newData);
         return true;
     }
 
     /**
-     * 获取缓存值（只读）
+     * Get cached value (read-only)
      */
     public V get(BlockPos pos) {
         if (pos == null) return null;
@@ -93,10 +92,10 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 移除单个位置（与旧代码 removeAt 完全一致）：
-     * - 从区块内层 Map 中移除该位置
-     * - 如果区块变空，则立即从 cache 中移除该区块（不延迟，也不取消 pendingRemovals）
-     * 注意：旧代码中没有取消 pendingRemovals，这里也不做取消
+     * Remove a single position (fully consistent with old removeAt):
+     * - Remove the position from the chunk's inner map
+     * - If the chunk becomes empty, immediately remove it from cache (no delay, no cancellation of pendingRemovals)
+     * Note: old code did not cancel pendingRemovals; we do not cancel here either
      */
     public void removeAt(BlockPos pos) {
         if (pos == null) return;
@@ -106,14 +105,14 @@ public class ChunkCache<V> {
             inner.remove(pos);
             if (inner.isEmpty()) {
                 cache.remove(chunkPos);
-                // 注意：旧代码没有主动取消 pendingRemovals，但如果有残留任务，执行时 cache 已空，无害
+                // Note: old code did not actively cancel pendingRemovals; if any task remains, it will find the cache empty, which is harmless
             }
         }
     }
 
     /**
-     * 主动卸载整个区块（延迟执行，与旧代码 removeChunkInMemory 完全一致）
-     * @param onRemove 卸载时的回调，用于日志
+     * Actively unload the entire chunk (delayed execution, fully consistent with old removeChunkInMemory)
+     * @param onRemove callback on unload, for logging
      */
     public void removeChunkInMemory(ChunkPos chunkPos, BiConsumer<ChunkPos, ConcurrentHashMap<BlockPos, V>> onRemove) {
         if (chunkPos == null) return;
@@ -121,7 +120,7 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 清空所有缓存，取消所有待执行的卸载任务
+     * Clear all caches and cancel all pending unload tasks
      */
     public void clearAll() {
         pendingRemovals.values().forEach(future -> future.cancel(false));
@@ -130,7 +129,7 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 检查某个位置是否在缓存中
+     * Check if a position exists in the cache
      */
     public boolean contains(BlockPos pos) {
         if (pos == null) return false;
@@ -140,15 +139,15 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 返回当前缓存的区块数量（注意：不是条目数）
+     * Return the number of chunks currently cached (not the number of entries)
      */
     public int getChunkCount() {
         return cache.size();
     }
 
     /**
-     * 获取内部缓存 Map（仅用于特殊情况，如 LT 的 loadChunkFromDB 需要直接操作）
-     * 请谨慎使用
+     * Get the internal raw cache map (only for special cases, e.g., LT's loadChunkFromDB needs direct access)
+     * Use with caution
      */
     public ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, V>> getRawCache() {
         return cache;
@@ -186,7 +185,7 @@ public class ChunkCache<V> {
     }
 
     /**
-     * 关闭调度器（在 Mod 卸载时调用）
+     * Shut down the scheduler (call when mod unloads)
      */
     public void shutdown() {
         pendingRemovals.values().forEach(future -> future.cancel(false));
@@ -200,5 +199,27 @@ public class ChunkCache<V> {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    public void loadChunkFromDB(
+            ChunkPos chunkPos, String modId,
+            java.util.function.Function<DataBaseCache.BlockDataEntry, V> mapper,
+            DebugLogger logger
+    ) {
+        if (!DatabaseManager.isReady()) return;
+        getRawCache().computeIfAbsent(chunkPos, cp -> {
+            Map<BlockPos, DataBaseCache.BlockDataEntry> tempMap = new HashMap<>();
+            DataBaseCache.loadChunk(cp, modId, tempMap);
+            ConcurrentHashMap<BlockPos, V> inner = new ConcurrentHashMap<>();
+            for (Map.Entry<BlockPos, DataBaseCache.BlockDataEntry> entry : tempMap.entrySet()) {
+                BlockPos pos = entry.getKey();
+                DataBaseCache.BlockDataEntry dataEntry = entry.getValue();
+                V value = mapper.apply(dataEntry);
+                if (value != null) {
+                    inner.put(pos.immutable(), value);
+                }
+            }
+            return inner;
+        });
     }
 }

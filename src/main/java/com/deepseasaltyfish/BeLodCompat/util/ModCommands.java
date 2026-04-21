@@ -57,7 +57,6 @@ public class ModCommands {
         return 1;
     }
 
-    // 其余方法保持不变...
     private static int dumpIRCache(CommandContext<CommandSourceStack> ctx) {
         String dump = IRBlockDataCache.dumpAllEntries();
         ctx.getSource().sendSuccess(() -> Component.literal(dump), false);

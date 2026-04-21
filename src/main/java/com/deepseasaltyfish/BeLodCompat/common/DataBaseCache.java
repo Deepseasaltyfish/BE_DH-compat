@@ -7,10 +7,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
+/**
+ * Handles database caching for block data, including per-mod block_data tables and a shared state dictionary.
+ */
 public class DataBaseCache {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(DataBaseCache.class);
 
@@ -26,15 +30,25 @@ public class DataBaseCache {
 
     public static final int CURRENT_VERSION = 1;
 
-    // 缓存已创建过的表（避免重复执行 CREATE TABLE）
+    // Cache of tables that have already been created (to avoid repeated CREATE TABLE)
     private static final ConcurrentSkipListSet<String> createdTables = new ConcurrentSkipListSet<>();
 
-    // 根据 modId 获取表名
+    /**
+     * Returns the table name for a given mod ID.
+     *
+     * @param modId the mod ID
+     * @return the table name
+     */
     private static String getTableName(String modId) {
         return modId + "_block_data";
     }
 
-    // 确保某个 mod 的 block_data 表已创建
+    /**
+     * Ensures that the block_data table for the given mod exists.
+     * If the table does not exist, it is created.
+     *
+     * @param modId the mod ID
+     */
     private static void ensureTableExists(String modId) {
         if (!DatabaseManager.isReady()) return;
         if (createdTables.contains(modId)) return;
@@ -59,7 +73,10 @@ public class DataBaseCache {
         LOGGER.debug("Table {} ensured for mod {}", tableName, modId);
     }
 
-    // 初始化字典表（全局一次）
+    /**
+     * Initializes the global state dictionary table.
+     * Should be called once when the database is ready.
+     */
     public static void initTable() {
         if (!DatabaseManager.isReady()) return;
         String dictSQL = "CREATE TABLE IF NOT EXISTS " + TABLE_DICT + " (id INTEGER PRIMARY KEY, state TEXT UNIQUE NOT NULL)";
@@ -86,7 +103,7 @@ public class DataBaseCache {
         Integer cached = stateIdCache.get(blockStateStr);
         if (cached != null) return cached;
 
-        // 先查询
+        // First query
         String selectSQL = "SELECT id FROM " + TABLE_DICT + " WHERE state = ?";
         int[] id = {-1};
         DatabaseManager.executeQuery(selectSQL, (rs) -> {
@@ -97,9 +114,9 @@ public class DataBaseCache {
             return id[0];
         }
 
-        // 尝试插入，使用 INSERT OR IGNORE 避免并发冲突
+        // Try insert using INSERT OR IGNORE to avoid concurrency conflicts
         DatabaseManager.executeUpdate("INSERT OR IGNORE INTO " + TABLE_DICT + " (state) VALUES (?)", blockStateStr);
-        // 再次查询
+        // Query again
         DatabaseManager.executeQuery(selectSQL, (rs) -> {
             try { if (rs.next()) id[0] = rs.getInt("id"); } catch (SQLException e) {}
         }, blockStateStr);
@@ -111,9 +128,18 @@ public class DataBaseCache {
         return 0;
     }
 
+    /**
+     * Stores block data for a specific mod asynchronously or synchronously based on configuration.
+     *
+     * @param modId         the mod ID
+     * @param pos           the block position
+     * @param blockStateStr the block state string
+     * @param color         the color (ARGB)
+     * @param version       the data version
+     */
     public static void putBlockData(String modId, BlockPos pos, String blockStateStr, int color, int version) {
         if (!DatabaseManager.isReady()) return;
-        ensureTableExists(modId);  // 确保表存在
+        ensureTableExists(modId);
 
         int stateId = getOrCreateStateId(blockStateStr);
         int chunkX = pos.getX() >> 4;
@@ -133,11 +159,16 @@ public class DataBaseCache {
         }
     }
 
+    /**
+     * Loads all block data for a given chunk and mod into the provided map.
+     *
+     * @param chunkPos   the chunk position
+     * @param modId      the mod ID
+     * @param targetMap  the map to populate (must accept BlockPos as key and BlockDataEntry as value)
+     */
     public static void loadChunk(ChunkPos chunkPos, String modId, Map<BlockPos, ? super BlockDataEntry> targetMap) {
         if (!DatabaseManager.isReady()) return;
         String tableName = getTableName(modId);
-        // 注意：表可能不存在，此时直接返回（没有数据）
-        // 为了安全，可以尝试查询，如果表不存在 SQLite 会报错，我们捕获异常忽略
         String sql = "SELECT d." + COL_X + ", d." + COL_Y + ", d." + COL_Z + ", s.state, d." + COL_COLOR + ", d." + COL_VERSION +
                 " FROM " + tableName + " d JOIN " + TABLE_DICT + " s ON d." + COL_STATE_ID + " = s.id " +
                 "WHERE d." + COL_CHUNK_X + " = ? AND d." + COL_CHUNK_Z + " = ?";
@@ -161,6 +192,13 @@ public class DataBaseCache {
         }, chunkPos.x, chunkPos.z);
     }
 
+    /**
+     * Retrieves the color of a block from the database.
+     *
+     * @param modId the mod ID
+     * @param pos   the block position
+     * @return the color (ARGB), or null if not found
+     */
     public static Integer getColor(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return null;
         String tableName = getTableName(modId);
@@ -175,6 +213,12 @@ public class DataBaseCache {
         return ret;
     }
 
+    /**
+     * Removes block data for a specific position from the database.
+     *
+     * @param modId the mod ID
+     * @param pos   the block position
+     */
     public static void removeBlockData(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return;
         ensureTableExists(modId);
@@ -184,6 +228,12 @@ public class DataBaseCache {
         LOGGER.debug("removeBlockData: mod={}, pos={}", modId, pos);
     }
 
+    /**
+     * Removes all block data for a whole chunk from the database.
+     *
+     * @param modId    the mod ID
+     * @param chunkPos the chunk position
+     */
     public static void removeChunk(String modId, ChunkPos chunkPos) {
         if (!DatabaseManager.isReady()) return;
         ensureTableExists(modId);
@@ -193,16 +243,54 @@ public class DataBaseCache {
         LOGGER.debug("removeChunk: mod={}, chunk={}", modId, chunkPos);
     }
 
+    /**
+     * Loads chunk data from the database and maps each entry to a target value using a provided mapper,
+     * then puts it into the given ConcurrentHashMap.
+     *
+     * @param chunkPos   the chunk position
+     * @param modId      the mod ID
+     * @param targetMap  the target map to populate
+     * @param mapper     function to convert BlockDataEntry to the target value type T
+     * @param logger     logger for debug output (currently unused but retained for consistency)
+     * @param <T>        the type of values to store in targetMap
+     */
+    public static <T> void loadChunkIntoMap(
+            ChunkPos chunkPos, String modId,
+            ConcurrentHashMap<BlockPos, T> targetMap,
+            java.util.function.Function<BlockDataEntry, T> mapper,
+            DebugLogger logger
+    ) {
+        if (!DatabaseManager.isReady()) return;
+        Map<BlockPos, BlockDataEntry> tempMap = new HashMap<>();
+        loadChunk(chunkPos, modId, tempMap);
+        for (Map.Entry<BlockPos, BlockDataEntry> entry : tempMap.entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockDataEntry dataEntry = entry.getValue();
+            T value = mapper.apply(dataEntry);
+            if (value != null) {
+                targetMap.put(pos.immutable(), value);
+            }
+        }
+    }
+
+    /**
+     * Performs a VACUUM operation on the database to reclaim unused space.
+     * Use with caution.
+     */
     public static void vacuum() {
         if (!DatabaseManager.isReady()) return;
         DatabaseManager.executeUpdate("VACUUM");
         LOGGER.info("Database vacuumed");
     }
 
+    /**
+     * Simple data container for a block database entry.
+     */
     public static class BlockDataEntry {
         public final String blockStateStr;
         public final int color;
         public final int version;
+
         public BlockDataEntry(String blockStateStr, int color, int version) {
             this.blockStateStr = blockStateStr;
             this.color = color;

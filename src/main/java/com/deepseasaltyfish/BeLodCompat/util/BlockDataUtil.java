@@ -140,25 +140,24 @@ public class BlockDataUtil {
     }
 
     /**
-     * 将 ARGB 格式的颜色值转换为 RGBA 格式。
+     * Converts a color value from ARGB format to RGBA format.
      *
-     * <p>输入格式为 0xAARRGGBB（Android/Windows 标准），输出格式为 0xRRGGBBAA（OpenGL/RGBA 标准）。
+     * <p>Input format: 0xAARRGGBB (Android/Windows standard), output format: 0xRRGGBBAA (OpenGL/RGBA standard).
      *
-     * @param argbColor ARGB 格式的颜色值，其中：
+     * @param argbColor the color in ARGB format, where:
      * <ul>
-     *  <li>bits 31-24: Alpha（透明度）</li>
-     *  <li>bits 23-16: Red（红色）</li>
-     *  <li>bits 15-8:  Green（绿色）</li>
-     *  <li>bits 7-0:   Blue（蓝色）</li>
+     *  <li>bits 31-24: Alpha (transparency)</li>
+     *  <li>bits 23-16: Red</li>
+     *  <li>bits 15-8:  Green</li>
+     *  <li>bits 7-0:   Blue</li>
      * </ul>
-     * @return RGBA 格式的颜色值，其中：
+     * @return the color in RGBA format, where:
      * <ul>
-     *  <li>bits 31-24: Red（红色）</li>
-     *  <li>bits 23-16: Green（绿色）</li>
-     *  <li>bits 15-8:  Blue（蓝色）</li>
-     *  <li>bits 7-0:   Alpha（透明度）</li>
+     *  <li>bits 31-24: Red</li>
+     *  <li>bits 23-16: Green</li>
+     *  <li>bits 15-8:  Blue</li>
+     *  <li>bits 7-0:   Alpha (transparency)</li>
      * </ul>
-     *
      */
     public static int argbToRgba(int argbColor) {
         int alpha = (argbColor >> 24) & 0xFF;

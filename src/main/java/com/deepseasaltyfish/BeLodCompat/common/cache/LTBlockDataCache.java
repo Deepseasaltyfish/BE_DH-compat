@@ -180,23 +180,10 @@ public class LTBlockDataCache {
     }
 
     //database
-    /**
-     * 从数据库加载指定区块的所有 LT 数据到内存缓存。
-     * 如果数据库未就绪或区块无数据，则不做任何事。
-     */
     private static void loadChunkFromDB(ChunkPos chunkPos) {
-        if (!DatabaseManager.isReady()) return;
-        CACHE.getRawCache().computeIfAbsent(chunkPos, cp -> {
-            Map<BlockPos, DataBaseCache.BlockDataEntry> tempMap = new HashMap<>();
-            DataBaseCache.loadChunk(cp, MOD_ID, tempMap);
-            ConcurrentHashMap<BlockPos, LTBlockData> inner = new ConcurrentHashMap<>();
-            for (Map.Entry<BlockPos, DataBaseCache.BlockDataEntry> entry : tempMap.entrySet()) {
-                BlockPos pos = entry.getKey();
-                DataBaseCache.BlockDataEntry dataEntry = entry.getValue();
-                BlockState state = BlockDataUtil.toDefaultBlockState(dataEntry.blockStateStr, pos, LOGGER, true);
-                inner.put(pos.immutable(), new LTBlockData(state, dataEntry.color));
-            }
-            return inner;
-        });
+        CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
+            BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, true);
+            return new LTBlockData(state, entry.color);
+        }, LOGGER);
     }
 }

@@ -171,20 +171,11 @@ public class IRBlockDataCache {
         );
     }
 
+    //database
     private static void loadChunkFromDB(ChunkPos chunkPos) {
-        if (!DatabaseManager.isReady()) return;
-        CACHE.getRawCache().computeIfAbsent(chunkPos, cp -> {
-            Map<BlockPos, DataBaseCache.BlockDataEntry> tempMap = new HashMap<>();
-            DataBaseCache.loadChunk(cp, MOD_ID, tempMap);
-            ConcurrentHashMap<BlockPos, IRBlockData> inner = new ConcurrentHashMap<>();
-            for (Map.Entry<BlockPos, DataBaseCache.BlockDataEntry> entry : tempMap.entrySet()) {
-                BlockPos pos = entry.getKey();
-                DataBaseCache.BlockDataEntry dataEntry = entry.getValue();
-                BlockState state = BlockDataUtil.toDefaultBlockState(dataEntry.blockStateStr, pos, LOGGER, false);
-                // Loaded from DB are always parent blocks (children not stored), so parentPos = null
-                inner.put(pos.immutable(), new IRBlockData(state, null));
-            }
-            return inner;
-        });
+        CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
+            BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, false);
+            return new IRBlockData(state, null);
+        }, LOGGER);
     }
 }

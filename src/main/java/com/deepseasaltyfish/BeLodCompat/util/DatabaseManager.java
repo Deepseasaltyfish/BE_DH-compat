@@ -11,17 +11,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 
+/**
+ * Manages the SQLite database connection and provides low-level execution methods.
+ * Borrows DH's SQLite JDBC driver to avoid repackaging.
+ */
 public class DatabaseManager {
-    // 数据库驱动相关配置（可改为从配置文件读取）
-    private static final String DEFAULT_DRIVER_CLASS = "dh_sqlite.JDBC";//we borrow DH for sqlite support instead of pack it yet
-    private static final String DEFAULT_JDBC_PREFIX = "jdbc:dh_sqlite:";//we borrow DH for sqlite support instead of pack it yet
-    private static final boolean DEFAULT_ENABLE_WAL = true;      // SQLite 特有
+    // Database driver configuration (can be changed to read from config)
+    private static final String DEFAULT_DRIVER_CLASS = "dh_sqlite.JDBC"; // borrow DH for sqlite support instead of packing it yet
+    private static final String DEFAULT_JDBC_PREFIX = "jdbc:dh_sqlite:"; // borrow DH for sqlite support
+    private static final boolean DEFAULT_ENABLE_WAL = true;      // SQLite specific
     private static final boolean DEFAULT_ENABLE_SYNC_NORMAL = true;
     private static String driverClass = DEFAULT_DRIVER_CLASS;
     private static String jdbcPrefix = DEFAULT_JDBC_PREFIX;
     private static boolean enableWal = DEFAULT_ENABLE_WAL;
     private static boolean enableSyncNormal = DEFAULT_ENABLE_SYNC_NORMAL;
-
 
     private static final DebugLogger LOGGER = DebugLogger.getLogger(DatabaseManager.class);
     private static boolean enabled = false;
@@ -29,6 +32,10 @@ public class DatabaseManager {
     private static Path currentDbPath = null;
     private static final ExecutorService writeExecutor = Executors.newSingleThreadExecutor();
 
+    /**
+     * Initializes the database driver and tests the connection.
+     * Should be called once during mod initialization.
+     */
     public static void init() {
         if (!ModConfigs.enableDatabase) {
             LOGGER.info("Database caching disabled by config");
@@ -50,6 +57,12 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Opens a database connection to the specified file.
+     * If the database is already open and unchanged, does nothing.
+     *
+     * @param dbFile the database file path
+     */
     public static synchronized void open(Path dbFile) {
         if (!enabled) {
             LOGGER.warn("Database not enabled, cannot open {}", dbFile);
@@ -59,7 +72,7 @@ public class DatabaseManager {
             LOGGER.debug("Database already open at {}", dbFile);
             return;
         }
-        // 只关闭连接，不改变 enabled 标志
+        // Only close connection, do not change the enabled flag
         closeConnection();
 
         try {
@@ -74,7 +87,7 @@ public class DatabaseManager {
             } catch (SQLException e) {
                 LOGGER.warn("Failed to set PRAGMA optimizations", e);
             }
-            // 确保 enabled 为 true（因为可能被之前误操作）
+            // Ensure enabled is true (in case it was previously mis-set)
             enabled = true;
             LOGGER.info("Opened database at {}", currentDbPath);
         } catch (SQLException | IOException e) {
@@ -98,10 +111,19 @@ public class DatabaseManager {
         currentDbPath = null;
     }
 
+    /**
+     * Closes the current database connection.
+     */
     public static synchronized void close() {
         closeConnection();
     }
 
+    /**
+     * Executes an SQL update synchronously.
+     *
+     * @param sql        the SQL statement
+     * @param parameters the parameters to set
+     */
     public static void executeUpdate(String sql, Object... parameters) {
         if (!isReady()) return;
         try (PreparedStatement pstmt = currentConnection.prepareStatement(sql)) {
@@ -114,6 +136,12 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Executes an SQL update asynchronously.
+     *
+     * @param sql        the SQL statement
+     * @param parameters the parameters to set
+     */
     public static void executeUpdateAsync(String sql, Object... parameters) {
         if (!isReady()) return;
         try {
@@ -123,6 +151,13 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Executes an SQL query and processes the result set with the given handler.
+     *
+     * @param sql           the SQL statement
+     * @param resultHandler consumer to handle the ResultSet
+     * @param parameters    the parameters to set
+     */
     public static void executeQuery(String sql, Consumer<ResultSet> resultHandler, Object... parameters) {
         if (!isReady()) return;
         try (PreparedStatement pstmt = currentConnection.prepareStatement(sql)) {
@@ -137,16 +172,31 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Creates a table if it does not exist.
+     *
+     * @param createTableSQL the CREATE TABLE SQL statement
+     */
     public static void createTableIfNotExists(String createTableSQL) {
         executeUpdate(createTableSQL);
     }
 
+    /**
+     * Checks whether the database is ready for operations.
+     *
+     * @return true if enabled and connection is open and not closed
+     */
     public static boolean isReady() {
         boolean connOk = currentConnection != null && !isConnectionClosed();
         LOGGER.debug("isReady: enabled={}, connOk={}", enabled, connOk);
         return enabled && connOk;
     }
 
+    /**
+     * Returns the current database file path.
+     *
+     * @return the path, or null if no database is open
+     */
     public static Path getCurrentDbPath() {
         return currentDbPath;
     }
