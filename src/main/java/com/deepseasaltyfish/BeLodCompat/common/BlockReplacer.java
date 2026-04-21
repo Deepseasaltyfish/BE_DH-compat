@@ -1,7 +1,7 @@
 package com.deepseasaltyfish.BeLodCompat.common;
 
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.seibel.distanthorizons.api.DhApi;
@@ -20,14 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BlockReplacer extends DhApiChunkProcessingEvent {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockReplacer.class);
     private static final AtomicBoolean DEAD = new AtomicBoolean(false);
-
-    private static volatile boolean currentOverride = false;
-    private static volatile String currentBlockId = "minecraft:soul_sand";
-    public static void updateConfig(boolean override, String blockId) {
-        currentOverride = override;
-        currentBlockId = blockId;
-    }
-
     @Override
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
     {
