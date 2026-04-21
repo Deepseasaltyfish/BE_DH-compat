@@ -1,8 +1,8 @@
 package com.deepseasaltyfish.BeLodCompat.util;
 
 import com.deepseasaltyfish.BeLodCompat.BeLodCompat;
-import com.deepseasaltyfish.BeLodCompat.cache.compat.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.cache.compat.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -51,7 +51,7 @@ public class ModCommands {
         if (color == 0) {
             ctx.getSource().sendSuccess(() -> Component.literal("No LT color cached at " + pos), false);
         } else {
-            String hex = String.format("%08X", BlockDataUtil.argbToRgba(color));
+            String hex = String.format("%08X",LTBlockDataCache.argbToRgba(color));
             ctx.getSource().sendSuccess(() -> Component.literal("LT color at " + pos + " = #" + hex), false);
         }
         return 1;

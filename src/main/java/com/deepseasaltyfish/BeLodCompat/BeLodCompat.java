@@ -1,9 +1,9 @@
 package com.deepseasaltyfish.BeLodCompat;
 
-import com.deepseasaltyfish.BeLodCompat.cache.BlockReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockReplacer;
 import com.deepseasaltyfish.BeLodCompat.config.CfgConfig;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
-import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
+import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
@@ -56,5 +56,13 @@ public class BeLodCompat
         public static void onClientSetup(FMLClientSetupEvent event)
         {
         }
+    }
+
+    @SubscribeEvent
+        public void onConfigReload(CfgConfig.ReloadEvent event) {
+        boolean newOverride = ModConfigs.overrideIrRailBlock;
+        String newBlockId = ModConfigs.overrideIrRailBlockId;
+        LOGGER.info("Config reload event received");
+        BlockReplacer.updateConfig(newOverride, newBlockId);
     }
 }

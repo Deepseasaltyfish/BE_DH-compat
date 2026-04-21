@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeLodCompat.chunk.mixins;
+package com.deepseasaltyfish.BeLodCompat.chunk.mixins.server;
 
 
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
