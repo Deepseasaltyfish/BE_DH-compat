@@ -14,6 +14,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class DatabaseManager {
+    // 数据库驱动相关配置（可改为从配置文件读取）
+    private static final String DEFAULT_DRIVER_CLASS = "dh_sqlite.JDBC";//we borrow DH for sqlite support instead of pack it yet
+    private static final String DEFAULT_JDBC_PREFIX = "jdbc:dh_sqlite:";//we borrow DH for sqlite support instead of pack it yet
+    private static final boolean DEFAULT_ENABLE_WAL = true;      // SQLite 特有
+    private static final boolean DEFAULT_ENABLE_SYNC_NORMAL = true;
+    private static String driverClass = DEFAULT_DRIVER_CLASS;
+    private static String jdbcPrefix = DEFAULT_JDBC_PREFIX;
+    private static boolean enableWal = DEFAULT_ENABLE_WAL;
+    private static boolean enableSyncNormal = DEFAULT_ENABLE_SYNC_NORMAL;
+
+
     private static final DebugLogger LOGGER = DebugLogger.getLogger(DatabaseManager.class);
     private static boolean enabled = false;
     private static Connection currentConnection = null;
@@ -26,8 +37,8 @@ public class DatabaseManager {
             return;
         }
         try {
-            Class.forName("org.sqlite.JDBC");
-            try (Connection testConn = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+            Class.forName(driverClass);
+            try (Connection testConn = DriverManager.getConnection(jdbcPrefix + ":memory:")) {
                 testConn.close();
             }
             enabled = true;
@@ -56,11 +67,11 @@ public class DatabaseManager {
         try {
             Files.createDirectories(dbFile.getParent());
             currentDbPath = dbFile;
-            currentConnection = DriverManager.getConnection("jdbc:sqlite:" + currentDbPath.toString());
+            currentConnection = DriverManager.getConnection(jdbcPrefix + currentDbPath.toString());
             currentConnection.setAutoCommit(true);
             try (Statement stmt = currentConnection.createStatement()) {
-                stmt.execute("PRAGMA journal_mode=WAL");
-                stmt.execute("PRAGMA synchronous=NORMAL");
+                if (enableWal) stmt.execute("PRAGMA journal_mode=WAL");
+                if (enableSyncNormal) stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=-20000");
             } catch (SQLException e) {
                 LOGGER.warn("Failed to set PRAGMA optimizations", e);

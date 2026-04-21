@@ -162,9 +162,9 @@ tasks.named('processResources', ProcessResources).configure {
 // Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
     // 把 sqlite-jdbc 的类和原生库打包进来
-    from {
-        configurations.sqlite.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+//    from {
+//        configurations.sqlite.collect { it.isDirectory() ? it : zipTree(it) }
+//    }
 
     // 排除签名文件，避免 SecurityException
     exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
