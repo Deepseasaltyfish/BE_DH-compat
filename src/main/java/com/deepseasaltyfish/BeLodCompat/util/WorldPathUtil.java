@@ -1,43 +1,53 @@
 package com.deepseasaltyfish.BeLodCompat.util;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.fml.loading.FMLPaths;
 import java.nio.file.Path;
 
 public class WorldPathUtil {
+    private static String cachedServerIp = null;
+
+    public static void setCachedServerIp(String ip) {
+        cachedServerIp = ip;
+    }
+
     /**
-     * Returns the actual root directory path of the current world (save).
-     * For singleplayer: returns .minecraft/saves/<save_folder>/
-     * For multiplayer: returns .minecraft/config/bedhcompat/servers/<server_address>/
-     * On server side: returns config/bedhcompat/server/
+     * Returns the root directory for world-specific data (database files).
+     * For singleplayer: returns the save folder path (e.g. .minecraft/saves/WorldName/)
+     * For multiplayer (client): returns .minecraft/belodcompat_servers/<server_ip>/ (without extra subfolder)
+     * For dedicated server: returns the server's world save root (via Level.getServer().getWorldPath)
      *
      * @param level the current level (world)
-     * @return the root path for world data storage
+     * @return the root path for storing per-world data
      */
     public static Path getWorldRootPath(Level level) {
         if (!level.isClientSide()) {
-            // Server side fallback (should not be called normally)
-            return FMLPaths.CONFIGDIR.get().resolve("bedhcompat").resolve("server");
+            // Dedicated server side
+            return level.getServer().getWorldPath(LevelResource.ROOT);
         }
-        // Delegate to client-only implementation
         return getClientWorldRootPath();
     }
 
     @OnlyIn(Dist.CLIENT)
     private static Path getClientWorldRootPath() {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.getSingleplayerServer() != null) {
-            // Singleplayer: use actual save folder path
-            return mc.getSingleplayerServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
-        } else if (mc.getCurrentServer() != null) {
-            // Multiplayer: use server address as identifier
-            String serverIp = mc.getCurrentServer().ip.replace(':', '_').replace('/', '_');
-            return FMLPaths.CONFIGDIR.get().resolve("bedhcompat").resolve("servers").resolve(serverIp);
-        } else {
-            // Unknown client scenario
-            return FMLPaths.CONFIGDIR.get().resolve("bedhcompat").resolve("unknown");
+            return mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT);
         }
+        String serverIp = cachedServerIp;
+        if (serverIp == null && mc.getCurrentServer() != null) {
+            serverIp = mc.getCurrentServer().ip;
+        }
+        if (serverIp != null) {
+            String sanitizedIp = serverIp.replace(':', '_').replace('/', '_').replace('\\', '_');
+            return FMLPaths.GAMEDIR.get().resolve("belodcompat_servers").resolve(sanitizedIp);
+        }
+        // Final fallback
+        return FMLPaths.GAMEDIR.get().resolve("belodcompat_servers").resolve("can_not_resolve");
     }
+
 }

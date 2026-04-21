@@ -168,6 +168,7 @@ public class DataBaseCache {
      */
     public static void loadChunk(ChunkPos chunkPos, String modId, Map<BlockPos, ? super BlockDataEntry> targetMap) {
         if (!DatabaseManager.isReady()) return;
+        ensureTableExists(modId);
         String tableName = getTableName(modId);
         String sql = "SELECT d." + COL_X + ", d." + COL_Y + ", d." + COL_Z + ", s.state, d." + COL_COLOR + ", d." + COL_VERSION +
                 " FROM " + tableName + " d JOIN " + TABLE_DICT + " s ON d." + COL_STATE_ID + " = s.id " +
@@ -201,6 +202,7 @@ public class DataBaseCache {
      */
     public static Integer getColor(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return null;
+        ensureTableExists(modId);
         String tableName = getTableName(modId);
         String sql = "SELECT " + COL_COLOR + " FROM " + tableName + " WHERE " +
                 COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
@@ -241,36 +243,6 @@ public class DataBaseCache {
         String sql = "DELETE FROM " + tableName + " WHERE " + COL_CHUNK_X + " = ? AND " + COL_CHUNK_Z + " = ?";
         DatabaseManager.executeUpdate(sql, chunkPos.x, chunkPos.z);
         LOGGER.debug("removeChunk: mod={}, chunk={}", modId, chunkPos);
-    }
-
-    /**
-     * Loads chunk data from the database and maps each entry to a target value using a provided mapper,
-     * then puts it into the given ConcurrentHashMap.
-     *
-     * @param chunkPos   the chunk position
-     * @param modId      the mod ID
-     * @param targetMap  the target map to populate
-     * @param mapper     function to convert BlockDataEntry to the target value type T
-     * @param logger     logger for debug output (currently unused but retained for consistency)
-     * @param <T>        the type of values to store in targetMap
-     */
-    public static <T> void loadChunkIntoMap(
-            ChunkPos chunkPos, String modId,
-            ConcurrentHashMap<BlockPos, T> targetMap,
-            java.util.function.Function<BlockDataEntry, T> mapper,
-            DebugLogger logger
-    ) {
-        if (!DatabaseManager.isReady()) return;
-        Map<BlockPos, BlockDataEntry> tempMap = new HashMap<>();
-        loadChunk(chunkPos, modId, tempMap);
-        for (Map.Entry<BlockPos, BlockDataEntry> entry : tempMap.entrySet()) {
-            BlockPos pos = entry.getKey();
-            BlockDataEntry dataEntry = entry.getValue();
-            T value = mapper.apply(dataEntry);
-            if (value != null) {
-                targetMap.put(pos.immutable(), value);
-            }
-        }
     }
 
     /**
