@@ -31,7 +31,7 @@ public class LTBlockDataCache {
     private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkColorMap = new ConcurrentHashMap<>();
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private static final Map<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
     private static final long REMOVAL_DELAY_MS = 30_000;
 
     /**
@@ -161,7 +161,7 @@ public class LTBlockDataCache {
             return null;
         }
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
         if (innerMap == null) {
             LOGGER.debug("No LTBlockData at chunk {} block {} (No chunk data)", chunkPos, pos);
             return Blocks.BLACK_WOOL.defaultBlockState();
@@ -180,7 +180,7 @@ public class LTBlockDataCache {
     public static int getColorAt(BlockPos pos) {
         if (pos == null) return 0;
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
         LTBlockData data = null;
         if (innerMap != null) {
             data = innerMap.get(pos);
@@ -202,7 +202,7 @@ public class LTBlockDataCache {
         if (existing != null) existing.cancel(false);
 
         ScheduledFuture<?> future = scheduler.schedule(() -> {
-            Map<BlockPos, LTBlockDataCache.LTBlockData> inner = chunkColorMap.remove(chunkPos);
+            ConcurrentHashMap<BlockPos, LTBlockDataCache.LTBlockData> inner = chunkColorMap.remove(chunkPos);
             if (inner != null) {
                 LOGGER.debug("Delayed removal of chunk {} with {} entries", chunkPos, inner.size());
             }
@@ -214,7 +214,7 @@ public class LTBlockDataCache {
     public static void removeAt(BlockPos pos) {
         if (pos == null) return;
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, LTBlockData> inner = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, LTBlockData> inner = chunkColorMap.get(chunkPos);
         if (inner != null) {
             inner.remove(pos);
             if (inner.isEmpty()) {
@@ -235,7 +235,7 @@ public class LTBlockDataCache {
     public static boolean contains(BlockPos pos) {
         if (pos == null) return false;
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
         return innerMap != null && innerMap.containsKey(pos);
     }
 

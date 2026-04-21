@@ -23,7 +23,7 @@ public class IRBlockDataCache {
     private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, IRBlockData>> chunkColorMap = new ConcurrentHashMap<>();
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private static final Map<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
     private static final long REMOVAL_DELAY_MS = 30_000;
     public static class IRBlockData {
         private final BlockState blockState;
@@ -122,7 +122,7 @@ public class IRBlockDataCache {
             return null;
         }
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, IRBlockData> innerMap = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, IRBlockData> innerMap = chunkColorMap.get(chunkPos);
         if (innerMap == null) {
             LOGGER.debug("No IRBlockData at chunk {} block {} (No chunk data)", chunkPos, pos);
             return Blocks.BLACK_WOOL.defaultBlockState();
@@ -142,7 +142,7 @@ public class IRBlockDataCache {
         if (existing != null) existing.cancel(false);
 
         ScheduledFuture<?> future = scheduler.schedule(() -> {
-            Map<BlockPos, IRBlockData> inner = chunkColorMap.remove(chunkPos);
+            ConcurrentHashMap<BlockPos, IRBlockData> inner = chunkColorMap.remove(chunkPos);
             if (inner != null) {
                 LOGGER.debug("Delayed removal of chunk {} with {} entries", chunkPos, inner.size());
             }
@@ -154,7 +154,7 @@ public class IRBlockDataCache {
     public static void removeAt(BlockPos pos) {
         if (pos == null) return;
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, IRBlockData> inner = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, IRBlockData> inner = chunkColorMap.get(chunkPos);
         if (inner != null) {
             inner.remove(pos);
             if (inner.isEmpty()) {
@@ -172,7 +172,7 @@ public class IRBlockDataCache {
     public static boolean contains(BlockPos pos) {
         if (pos == null) return false;
         ChunkPos chunkPos = new ChunkPos(pos);
-        Map<BlockPos, IRBlockData> innerMap = chunkColorMap.get(chunkPos);
+        ConcurrentHashMap<BlockPos, IRBlockData> innerMap = chunkColorMap.get(chunkPos);
         return innerMap != null && innerMap.containsKey(pos);
     }
 
