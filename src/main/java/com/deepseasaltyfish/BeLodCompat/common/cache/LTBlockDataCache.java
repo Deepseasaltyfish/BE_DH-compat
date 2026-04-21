@@ -25,14 +25,9 @@ import java.util.concurrent.*;
 public class LTBlockDataCache {
     private static final String MOD_ID = "littletiles";
     //TODO: we should store these cache in region instead of generate them frequently
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTBlockDataCache.class);
-
-    // Main cache: each chunk maps to a BlockPos -> LTBlockData (BlockState + color)
-    private static final ConcurrentHashMap<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkColorMap = new ConcurrentHashMap<>();
-
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private static final ConcurrentHashMap<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
+    private static final ChunkCache<LTBlockDataCache.LTBlockData> CACHE = new ChunkCache<>(REMOVAL_DELAY_MS);
 
     /**
      * RGBA format
@@ -40,12 +35,10 @@ public class LTBlockDataCache {
     private static class LTBlockData {
         private final BlockState blockState;
         private final int color; // ARGB
-
         LTBlockData(BlockState blockState, int color) {
             this.blockState = blockState;
             this.color = color;
         }
-
         BlockState getBlockState() { return blockState; }
         int getColor() { return color; }
     }
@@ -103,39 +96,19 @@ public class LTBlockDataCache {
     }
 
     public static boolean put(BlockPos pos, String blockStr, int color) {
-        ChunkPos chunkPos = new ChunkPos(pos);
-
-        ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
-        if (existing != null) {
-            existing.cancel(false);
-        }
-
-        // 提取纯 block ID（用于数据库存储）
         String blockName = BlockDataUtil.extractBlockName(blockStr);
         if (blockName == null) {
             LOGGER.error("Failed to extract block name from '{}' at {}", blockStr, pos);
             return false;
         }
 
-        BlockState convertedState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, true);
-        if (convertedState == null) {
-            LOGGER.error("Fail to convert to BlockState for LT at {}", pos);
-            return false;
-        }
+        BlockState newState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, true);
+        LTBlockData newData = new LTBlockData(newState, color);
+        boolean changed = CACHE.put(pos, newData, (old, fresh) ->
+                old.getBlockState().equals(fresh.getBlockState()) && old.getColor() == fresh.getColor());
 
-        // 检查内存缓存是否已存在相同数据
-        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
-        LTBlockData oldData = innerMap != null ? innerMap.get(pos) : null;
-        if (oldData != null && oldData.getBlockState().equals(convertedState) && oldData.getColor() == color) {
-            return true;
-        }
-
-        // 更新内存缓存
-        chunkColorMap.computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
-                .put(pos.immutable(), new LTBlockData(convertedState, color));
-
-        // 数据库操作：存储简化后的 blockName（纯 ID）
-        if (DatabaseManager.isReady()) {
+        // 关键修改：仅当数据变化时才操作数据库
+        if (changed && DatabaseManager.isReady()) {
             if (color != 0xFFFFFFFF) {
                 DataBaseCache.putBlockData(MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
             } else {
@@ -160,16 +133,11 @@ public class LTBlockDataCache {
             LOGGER.error("LTBlockData getBlockStateAt called with null pos");
             return null;
         }
-        ChunkPos chunkPos = new ChunkPos(pos);
-        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
-        if (innerMap == null) {
-            LOGGER.debug("No LTBlockData at chunk {} block {} (No chunk data)", chunkPos, pos);
+        LTBlockData data = CACHE.get(pos);
+        if (data == null) {
+            ChunkPos cp = new ChunkPos(pos);
+            LOGGER.debug("No LTBlockData at chunk {} block {}", cp, pos);
             return Blocks.BLACK_WOOL.defaultBlockState();
-        }
-        LTBlockData data = innerMap.get(pos);
-        if(data == null) {
-            LOGGER.debug("No LTBlockData at chunk {} block {}", chunkPos, pos);
-            return Blocks.RED_WOOL.defaultBlockState();
         }
         return data.getBlockState();
     }
@@ -179,110 +147,34 @@ public class LTBlockDataCache {
      */
     public static int getColorAt(BlockPos pos) {
         if (pos == null) return 0;
-        ChunkPos chunkPos = new ChunkPos(pos);
-        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
-        LTBlockData data = null;
-        if (innerMap != null) {
-            data = innerMap.get(pos);
-        }
+        LTBlockData data = CACHE.get(pos);
         if (data == null && DatabaseManager.isReady()) {
-            loadChunkFromDB(chunkPos);
-            innerMap = chunkColorMap.get(chunkPos);
-            if (innerMap != null) {
-                data = innerMap.get(pos);
-            }
+            loadChunkFromDB(new ChunkPos(pos));
+            data = CACHE.get(pos);
         }
         return data != null ? data.getColor() : 0;
     }
 
     public static void removeChunkInMemory(ChunkPos chunkPos) {
-        if (chunkPos == null) return;
-
-        ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
-        if (existing != null) existing.cancel(false);
-
-        ScheduledFuture<?> future = scheduler.schedule(() -> {
-            ConcurrentHashMap<BlockPos, LTBlockDataCache.LTBlockData> inner = chunkColorMap.remove(chunkPos);
-            if (inner != null) {
-                LOGGER.debug("Delayed removal of chunk {} with {} entries", chunkPos, inner.size());
-            }
-            pendingRemovals.remove(chunkPos);
-        }, REMOVAL_DELAY_MS, TimeUnit.MILLISECONDS);
-        pendingRemovals.put(chunkPos, future);
+        CACHE.removeChunkInMemory(chunkPos, (cp, removed) ->
+                LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
     }
-
     public static void removeAt(BlockPos pos) {
-        if (pos == null) return;
-        ChunkPos chunkPos = new ChunkPos(pos);
-        ConcurrentHashMap<BlockPos, LTBlockData> inner = chunkColorMap.get(chunkPos);
-        if (inner != null) {
-            inner.remove(pos);
-            if (inner.isEmpty()) {
-                chunkColorMap.remove(chunkPos);
-            }
-        }
-        if (DatabaseManager.isReady()) {//we have to call this to make sure color cleaned completely
+        CACHE.removeAt(pos);
+        if (DatabaseManager.isReady()) {
             DataBaseCache.removeBlockData(MOD_ID, pos);
         }
     }
-
-    public static void clearAll() {
-        pendingRemovals.values().forEach(future -> future.cancel(false));
-        pendingRemovals.clear();
-        chunkColorMap.clear();
-    }
-
-    public static boolean contains(BlockPos pos) {
-        if (pos == null) return false;
-        ChunkPos chunkPos = new ChunkPos(pos);
-        ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
-        return innerMap != null && innerMap.containsKey(pos);
-    }
-
-    public static int getCacheSize() {
-        return chunkColorMap.size();
-    }
+    public static void clearAll() { CACHE.clearAll(); }
+    public static boolean contains(BlockPos pos) { return CACHE.contains(pos); }
+    public static int getCacheSize() { return CACHE.getChunkCount(); }
 
     //debug
-
     public static String dumpAllEntries() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== LTBlockDataCache Dump ===\n");
-
-        // 第一次遍历：统计总数
-        int total = 0;
-        for (ConcurrentHashMap<BlockPos, LTBlockData> innerMap : chunkColorMap.values()) {
-            total += innerMap.size();
-        }
-
-        if (total == 0) {
-            sb.append("(empty)\n");
-            return sb.toString();
-        }
-
-        if (total > 100) {
-            sb.append("Total entries: ").append(total).append("\n");
-            return sb.toString();
-        }
-
-        // 第二次遍历：输出详细信息（当总数 ≤ 100 时）
-        for (Map.Entry<ChunkPos, ConcurrentHashMap<BlockPos, LTBlockData>> chunkEntry : chunkColorMap.entrySet()) {
-            ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkEntry.getValue();
-            if (innerMap.isEmpty()) continue;
-            ChunkPos cp = chunkEntry.getKey();
-            sb.append("Chunk ").append(cp.x).append(", ").append(cp.z).append(":\n");
-            for (Map.Entry<BlockPos, LTBlockData> entry : innerMap.entrySet()) {
-                BlockPos pos = entry.getKey();
-                LTBlockData data = entry.getValue();
-                BlockState state = data.getBlockState();
-                int color = data.getColor();
-                ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-                sb.append("  ").append(pos.getX()).append(", ").append(pos.getY()).append(", ").append(pos.getZ())
-                        .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", BlockDataUtil.argbToRgba(color))).append("\n");
-            }
-        }
-        sb.append("Total entries: ").append(total).append("\n");
-        return sb.toString();
+        return CACHE.dumpToString("LTBlockDataCache", data -> {
+            ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(data.getBlockState().getBlock());
+            return rl.toString() + " color: #" + String.format("%08X", BlockDataUtil.argbToRgba(data.getColor()));
+        });
     }
 
     //database
@@ -292,8 +184,7 @@ public class LTBlockDataCache {
      */
     private static void loadChunkFromDB(ChunkPos chunkPos) {
         if (!DatabaseManager.isReady()) return;
-        // 使用 computeIfAbsent 确保只在区块不存在时才加载
-        chunkColorMap.computeIfAbsent(chunkPos, cp -> {
+        CACHE.getRawCache().computeIfAbsent(chunkPos, cp -> {
             Map<BlockPos, DataBaseCache.BlockDataEntry> tempMap = new HashMap<>();
             DataBaseCache.loadChunk(cp, MOD_ID, tempMap);
             ConcurrentHashMap<BlockPos, LTBlockData> inner = new ConcurrentHashMap<>();
