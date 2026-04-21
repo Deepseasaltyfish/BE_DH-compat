@@ -4,11 +4,11 @@
   "package": "com.deepseasaltyfish.BeLodCompat.chunk.mixins",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "server.MixinChunkSerialize",
-    "server.MixinLevelChunk",
+    "MixinChunkSerialize",
+    "MixinLevelChunk",
+    "MixinLevel",
     "distanthorizons.MixinBlockStateWrapper",
-    "distanthorizons.MixinClientBlockStateColorCache",
-    "MixinLevel"
+    "distanthorizons.MixinClientBlockStateColorCache"
   ],
   "client": [
     "client.MixinClientLevel",

@@ -1,13 +1,12 @@
-package com.deepseasaltyfish.BeLodCompat.common.DataBase;
+package com.deepseasaltyfish.BeLodCompat.cache;
 
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
-import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
+import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
 import java.nio.file.Path;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -1,7 +1,7 @@
-package com.deepseasaltyfish.BeLodCompat.chunk.mixins.server;
+package com.deepseasaltyfish.BeLodCompat.chunk.mixins;
 
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.cache.compat.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.cache.compat.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;

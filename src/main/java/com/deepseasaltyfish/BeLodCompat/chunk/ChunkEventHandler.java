@@ -1,10 +1,10 @@
 package com.deepseasaltyfish.BeLodCompat.chunk;
 
 import com.deepseasaltyfish.BeLodCompat.BeLodCompat;
-import com.deepseasaltyfish.BeLodCompat.common.DataBase.DataBaseCache;
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
+import com.deepseasaltyfish.BeLodCompat.cache.DataBaseCache;
+import com.deepseasaltyfish.BeLodCompat.cache.compat.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.cache.compat.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.deepseasaltyfish.BeLodCompat.util.WorldPathUtil;

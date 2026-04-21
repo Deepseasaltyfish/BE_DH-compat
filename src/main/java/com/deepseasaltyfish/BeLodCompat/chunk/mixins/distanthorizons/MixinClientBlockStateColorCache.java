@@ -1,6 +1,7 @@
 package com.deepseasaltyfish.BeLodCompat.chunk.mixins.distanthorizons;
 
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.cache.compat.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.seibel.distanthorizons.core.dataObjects.fullData.sources.FullDataSourceV2;
 import com.seibel.distanthorizons.core.pos.blockPos.DhBlockPos;
@@ -31,11 +32,11 @@ public abstract class MixinClientBlockStateColorCache {//TODO: we will remove th
         BlockPos mcPos = new BlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
         int cachedColor = LTBlockDataCache.getColorAt(mcPos);
         if (cachedColor != 0 && cachedColor != 0xFFFFFFFF) {
-            int blended = LTBlockDataCache.multiplyArgb(originalColor, cachedColor);
+            int blended = BlockDataUtil.multiplyArgb(originalColor, cachedColor);
             bE_LOD_compat$LOGGER.debug("origin: #{}, cached: #{}, blended: #{} at {}",
-                    String.format("%08X", LTBlockDataCache.argbToRgba(originalColor)),
-                    String.format("%08X", LTBlockDataCache.argbToRgba(cachedColor)),
-                    String.format("%08X", LTBlockDataCache.argbToRgba(blended)),
+                    String.format("%08X", BlockDataUtil.argbToRgba(originalColor)),
+                    String.format("%08X", BlockDataUtil.argbToRgba(cachedColor)),
+                    String.format("%08X", BlockDataUtil.argbToRgba(blended)),
                     blockPos
             );
             cir.setReturnValue(blended);

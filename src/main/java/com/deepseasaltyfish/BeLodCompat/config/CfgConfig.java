@@ -1,6 +1,8 @@
 package com.deepseasaltyfish.BeLodCompat.config;
 
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Event;
 
@@ -48,6 +50,7 @@ public class CfgConfig {
             startWatcher();
             watcherStarted = true;
         }
+        validateConfig(configClass);
     }
 
     private static void loadConfig(Class<?> configClass, Path path) {
@@ -177,5 +180,27 @@ public class CfgConfig {
                 }
             }
         }, 1, 1, TimeUnit.SECONDS);
+    }
+
+    private static void validateConfig(Class<?> configClass) {
+        if (configClass == ModConfigs.class) {
+            // 验证 overrideIrRailBlockId 是否合法
+            String id = ModConfigs.overrideIrRailBlockId;
+            if (id == null || id.isEmpty()) {
+                ModConfigs.overrideIrRailBlockId = "minecraft:soul_sand";
+                LOGGER.warn("overrideIrRailBlockId is empty, reset to soul_sand");
+            } else {
+                try {
+                    ResourceLocation rl = ResourceLocation.parse(id);
+                    if (!BuiltInRegistries.BLOCK.containsKey(rl)) {
+                        LOGGER.warn("Invalid override block ID '{}', reset to soul_sand", id);
+                        ModConfigs.overrideIrRailBlockId = "minecraft:soul_sand";
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Failed to parse override block ID '{}', reset to soul_sand", id, e);
+                    ModConfigs.overrideIrRailBlockId = "minecraft:soul_sand";
+                }
+            }
+        }
     }
 }
