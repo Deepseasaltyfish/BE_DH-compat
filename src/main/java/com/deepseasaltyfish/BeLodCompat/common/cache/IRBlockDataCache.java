@@ -1,4 +1,4 @@
-package com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading;
+package com.deepseasaltyfish.BeLodCompat.common.cache;
 
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
@@ -44,7 +44,7 @@ public class IRBlockDataCache {
     public static boolean extractIRColor(BlockPos pos, CompoundTag tag, boolean isParent) {
         // Check config override first
         if (ModConfigs.overrideIrRailBlock) {
-            String overrideId = ModConfigs.overrideIrRailBlockId;
+            String overrideId = ModConfigs.getValidatedOverrideId();
             if (overrideId != null && !overrideId.isEmpty()) {
                 LOGGER.debug("IR rail override applied at {}, using {}", pos, overrideId);
                 return put(pos, overrideId);
@@ -67,6 +67,7 @@ public class IRBlockDataCache {
             String id = bedItem.getString("id");
             if (id.isEmpty()) {
                 LOGGER.debug("Empty bedItem id at {}, using soul sand (handled by put fallback)", pos);
+                return put(pos, ModConfigs.getValidatedOverrideId());
             }
             return put(pos, id);
         } catch (Exception e) {

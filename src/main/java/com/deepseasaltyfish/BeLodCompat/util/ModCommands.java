@@ -1,8 +1,8 @@
 package com.deepseasaltyfish.BeLodCompat.util;
 
 import com.deepseasaltyfish.BeLodCompat.BeLodCompat;
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -73,7 +73,7 @@ public class ModCommands {
     private static int showConfig(CommandContext<CommandSourceStack> ctx) {
         String dump = "debugLogging: " + ModConfigs.debugLogging + "\n" +
                 "overrideIrRailBlock: " + ModConfigs.overrideIrRailBlock + "\n" +
-                "overrideIrRailBlockId: " + ModConfigs.overrideIrRailBlockId;
+                "overrideIrRailBlockId: " + ModConfigs.getValidatedOverrideId();
         ctx.getSource().sendSuccess(() -> Component.literal(dump), false);
         return 1;
     }

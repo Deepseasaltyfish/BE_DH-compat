@@ -1,7 +1,7 @@
-package com.deepseasaltyfish.BeLodCompat.common.LittleTiles;
+package com.deepseasaltyfish.BeLodCompat.common.cache;
 
-import com.deepseasaltyfish.BeLodCompat.common.DataBase.DataBaseCache;
-import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
+import com.deepseasaltyfish.BeLodCompat.common.DataBaseCache;
+import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;

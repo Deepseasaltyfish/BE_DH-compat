@@ -1,7 +1,7 @@
 package com.deepseasaltyfish.BeLodCompat.chunk.mixins;
 
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.IRBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;

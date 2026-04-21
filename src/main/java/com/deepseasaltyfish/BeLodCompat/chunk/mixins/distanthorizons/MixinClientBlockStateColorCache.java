@@ -1,6 +1,6 @@
 package com.deepseasaltyfish.BeLodCompat.chunk.mixins.distanthorizons;
 
-import com.deepseasaltyfish.BeLodCompat.common.LittleTiles.LTBlockDataCache;
+import com.deepseasaltyfish.BeLodCompat.common.cache.LTBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.seibel.distanthorizons.core.dataObjects.fullData.sources.FullDataSourceV2;
 import com.seibel.distanthorizons.core.pos.blockPos.DhBlockPos;

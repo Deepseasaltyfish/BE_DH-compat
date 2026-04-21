@@ -1,6 +1,12 @@
 package com.deepseasaltyfish.BeLodCompat.config;
 
+import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
+import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+
 public class ModConfigs {
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(ModConfigs.class);
     @CfgConfig.Comment("Enable debug logging")
     public static volatile boolean debugLogging = false;
 
@@ -9,7 +15,7 @@ public class ModConfigs {
 
     @CfgConfig.Comment("Block ID to replace IR rails with (e.g., 'minecraft:stone', 'minecraft:diamond_block')." +
             "If the ID is invalid or the block does not exist, falls back to 'minecraft:soul_sand'.")
-    public static volatile String overrideIrRailBlockId = "minecraft:soul_sand";
+    private static volatile String overrideIrRailBlockId = "minecraft:soul_sand";
 
     @CfgConfig.Comment("Enable database caching (requires restart)")
     public static boolean enableDatabase = true;
@@ -19,5 +25,30 @@ public class ModConfigs {
 
     public static void register() {
         CfgConfig.register(ModConfigs.class, "belodcompat.cfg");
+    }
+
+    /**
+     * Returns a validated block ID that is guaranteed to exist in the block registry.
+     * If the current overrideIrRailBlockId is invalid, falls back to "minecraft:soul_sand".
+     *
+     * @return a valid block ID
+     */
+    public static String getValidatedOverrideId() {
+        String id = overrideIrRailBlockId;
+        if (id == null || id.isEmpty()) {
+            return "minecraft:soul_sand";
+        }
+        try {
+            ResourceLocation rl = ResourceLocation.parse(id);
+            if (BuiltInRegistries.BLOCK.containsKey(rl)) {
+                return id;
+            } else {
+                LOGGER.warn("Invalid override block ID '{}', using soul_sand", id);
+                return "minecraft:soul_sand";
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse override block ID '{}', using soul_sand", id, e);
+            return "minecraft:soul_sand";
+        }
     }
 }
