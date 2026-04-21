@@ -177,6 +177,7 @@ public class DataBaseCache {
 
     public static void removeBlockData(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return;
+        ensureTableExists(modId);
         String tableName = getTableName(modId);
         String sql = "DELETE FROM " + tableName + " WHERE " + COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
         DatabaseManager.executeUpdate(sql, pos.getX(), pos.getY(), pos.getZ());
@@ -185,6 +186,7 @@ public class DataBaseCache {
 
     public static void removeChunk(String modId, ChunkPos chunkPos) {
         if (!DatabaseManager.isReady()) return;
+        ensureTableExists(modId);
         String tableName = getTableName(modId);
         String sql = "DELETE FROM " + tableName + " WHERE " + COL_CHUNK_X + " = ? AND " + COL_CHUNK_Z + " = ?";
         DatabaseManager.executeUpdate(sql, chunkPos.x, chunkPos.z);

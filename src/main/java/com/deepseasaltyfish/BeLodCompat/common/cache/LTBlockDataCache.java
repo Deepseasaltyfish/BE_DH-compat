@@ -107,7 +107,6 @@ public class LTBlockDataCache {
         boolean changed = CACHE.put(pos, newData, (old, fresh) ->
                 old.getBlockState().equals(fresh.getBlockState()) && old.getColor() == fresh.getColor());
 
-        // 关键修改：仅当数据变化时才操作数据库
         if (changed && DatabaseManager.isReady()) {
             if (color != 0xFFFFFFFF) {
                 DataBaseCache.putBlockData(MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
@@ -136,7 +135,7 @@ public class LTBlockDataCache {
         LTBlockData data = CACHE.get(pos);
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
-            LOGGER.debug("No LTBlockData at chunk {} block {}", cp, pos);
+            LOGGER.warn("No LTBlockData at chunk {} block {}", cp, pos);
             return Blocks.BLACK_WOOL.defaultBlockState();
         }
         return data.getBlockState();
@@ -146,7 +145,10 @@ public class LTBlockDataCache {
      * Retrieve color (RGBA) at position, returns 0 if missing
      */
     public static int getColorAt(BlockPos pos) {
-        if (pos == null) return 0;
+        if (pos == null) {
+            LOGGER.error("LTBlockData getBlockStateAt called with null pos");
+            return 0;
+        }
         LTBlockData data = CACHE.get(pos);
         if (data == null && DatabaseManager.isReady()) {
             loadChunkFromDB(new ChunkPos(pos));
@@ -192,9 +194,7 @@ public class LTBlockDataCache {
                 BlockPos pos = entry.getKey();
                 DataBaseCache.BlockDataEntry dataEntry = entry.getValue();
                 BlockState state = BlockDataUtil.toDefaultBlockState(dataEntry.blockStateStr, pos, LOGGER, true);
-                if (state != null) {
-                    inner.put(pos.immutable(), new LTBlockData(state, dataEntry.color));
-                }
+                inner.put(pos.immutable(), new LTBlockData(state, dataEntry.color));
             }
             return inner;
         });
