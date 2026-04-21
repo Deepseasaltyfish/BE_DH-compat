@@ -48,4 +48,22 @@ public class BlockDataUtil {
         return end == -1 ? name.substring(cut + 1)
                 : name.substring(0, end);
     }
+
+    /**
+     * Extracts the pure block ID from a block state string that may contain properties in square brackets.
+     * Example: "minecraft:oak_leaves[distance=7,persistent=false]" -> "minecraft:oak_leaves"
+     *
+     * @param blockStateStr the full block state string (may be null or empty)
+     * @return the extracted block ID, or null if input is invalid
+     */
+    public static String extractBlockName(String blockStateStr) {
+        if (blockStateStr == null || blockStateStr.isEmpty()) {
+            return null;
+        }
+        int stateStart = blockStateStr.indexOf('[');
+        if (stateStart != -1) {
+            return blockStateStr.substring(0, stateStart);
+        }
+        return blockStateStr;
+    }
 }

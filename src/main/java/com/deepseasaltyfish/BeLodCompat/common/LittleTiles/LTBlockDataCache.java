@@ -1,12 +1,15 @@
 package com.deepseasaltyfish.BeLodCompat.common.LittleTiles;
 
 import com.deepseasaltyfish.BeLodCompat.common.DataBase.DataBaseCache;
-import com.deepseasaltyfish.BeLodCompat.common.ImmersiveRairoading.IRBlockDataCache;
 import com.deepseasaltyfish.BeLodCompat.dataBase.DatabaseManager;
+import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.*;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntArrayTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
@@ -159,6 +162,35 @@ public class LTBlockDataCache {
             LOGGER.error("null blockStateString at {}", pos);
             return Blocks.AIR.defaultBlockState();
         }
+        if (blockStateStr.equals("littletiles:missing")) {
+            LOGGER.debug("Found LT \"littletiles:missing\" value at {}, converted to stone", pos);
+            return Blocks.STONE.defaultBlockState();
+        }
+
+        String blockName = BlockDataUtil.extractBlockName(blockStateStr);
+        if (blockName == null) {
+            LOGGER.error("Failed to extract block name from '{}' at {}", blockStateStr, pos);
+            return Blocks.AIR.defaultBlockState();
+        }
+
+        try {
+            ResourceLocation blockId = ResourceLocation.parse(blockName);
+            Block block = BuiltInRegistries.BLOCK.get(blockId);
+            if (block == Blocks.AIR) {
+                LOGGER.warn("Unknown block ID '{}' at {}, using air", blockName, pos);
+            }
+            return block.defaultBlockState();
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse block ID '{}' from string {} at {}", blockName, blockStateStr, pos, e);
+            return Blocks.AIR.defaultBlockState();
+        }
+    }
+    @Deprecated
+    public static BlockState parseBlockStateStringLegacy(String blockStateStr, BlockPos pos) {
+        if (blockStateStr == null || blockStateStr.isEmpty()) {
+            LOGGER.error("null blockStateString at {}", pos);
+            return Blocks.AIR.defaultBlockState();
+        }
         try {
             //sometimes the blockStateStr could be "littletiles:missing" (mostly caused by missing other mod), temporarily convert to stone
             if(blockStateStr.equals("littletiles:missing")){
@@ -211,6 +243,7 @@ public class LTBlockDataCache {
         }
     }
     // Helper: bypass generic restriction and safely set property
+    @Deprecated
     @SuppressWarnings("unchecked")
     private static <T extends Comparable<T>> BlockState safeSetProperty(BlockState state, Property<?> property, Object value) {
         return state.setValue((Property<T>) property, (T) value);
@@ -219,10 +252,16 @@ public class LTBlockDataCache {
     public static boolean put(BlockPos pos, String blockStr, int color) {
         ChunkPos chunkPos = new ChunkPos(pos);
 
-        // 取消该区块的延迟卸载任务（如果有）
         ScheduledFuture<?> existing = pendingRemovals.remove(chunkPos);
         if (existing != null) {
             existing.cancel(false);
+        }
+
+        // 提取纯 block ID（用于数据库存储）
+        String blockName = BlockDataUtil.extractBlockName(blockStr);
+        if (blockName == null) {
+            LOGGER.error("Failed to extract block name from '{}' at {}", blockStr, pos);
+            return false;
         }
 
         BlockState convertedState = parseBlockStateString(blockStr, pos);
@@ -231,12 +270,10 @@ public class LTBlockDataCache {
             return false;
         }
 
-        // 获取当前内存中的旧数据
+        // 检查内存缓存是否已存在相同数据
         ConcurrentHashMap<BlockPos, LTBlockData> innerMap = chunkColorMap.get(chunkPos);
         LTBlockData oldData = innerMap != null ? innerMap.get(pos) : null;
-        // 比较新旧数据是否完全相同
         if (oldData != null && oldData.getBlockState().equals(convertedState) && oldData.getColor() == color) {
-            // 数据相同，无需更新
             return true;
         }
 
@@ -244,12 +281,11 @@ public class LTBlockDataCache {
         chunkColorMap.computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>())
                 .put(pos.immutable(), new LTBlockData(convertedState, color));
 
-        // 数据库操作：仅当颜色不是 0xFFFFFFFF（默认无叠加）时才写入；如果是默认色则删除已有记录
+        // 数据库操作：存储简化后的 blockName（纯 ID）
         if (DatabaseManager.isReady()) {
             if (color != 0xFFFFFFFF) {
-                DataBaseCache.putBlockData(MOD_ID, pos, blockStr, color, DataBaseCache.CURRENT_VERSION);
+                DataBaseCache.putBlockData(MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
             } else {
-                // 如果新颜色是默认色，且数据库中有旧记录，则删除
                 DataBaseCache.removeBlockData(MOD_ID, pos);
             }
         }
