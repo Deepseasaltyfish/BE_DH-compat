@@ -1,6 +1,7 @@
 package com.deepseasaltyfish.BeLodCompat.common.cache;
 
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
+import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -76,21 +77,6 @@ public class IRBlockDataCache {
         }
     }
 
-    private static BlockState parseBlockStateString(String blockStateStr, BlockPos pos) {
-        if (blockStateStr == null || blockStateStr.isEmpty()) {
-            LOGGER.debug("Found null blockStateString at {}", pos);//TODO:IR side cache issue
-            return Blocks.AIR.defaultBlockState();
-        }
-        try {
-            ResourceLocation rl = ResourceLocation.parse(blockStateStr);
-            Block block = BuiltInRegistries.BLOCK.get(rl);
-            return block.defaultBlockState();
-        } catch (Exception e) {
-            LOGGER.error("Failed to parse IR BlockState string {} at {}",blockStateStr, pos, e);
-            return Blocks.AIR.defaultBlockState(); // fallback
-        }
-    }
-
     public static boolean put(BlockPos pos, String blockStr) {
         ChunkPos chunkPos = new ChunkPos(pos);
 
@@ -100,7 +86,7 @@ public class IRBlockDataCache {
             existing.cancel(false);
         }
 
-        BlockState convertedState = parseBlockStateString(blockStr, pos);
+        BlockState convertedState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, false);
         if (convertedState == null) {
             LOGGER.error("Fail to convert to BlockState for IR at {}", pos);
             return false;

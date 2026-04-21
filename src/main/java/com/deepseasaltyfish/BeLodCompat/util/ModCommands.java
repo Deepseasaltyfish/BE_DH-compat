@@ -51,7 +51,7 @@ public class ModCommands {
         if (color == 0) {
             ctx.getSource().sendSuccess(() -> Component.literal("No LT color cached at " + pos), false);
         } else {
-            String hex = String.format("%08X",LTBlockDataCache.argbToRgba(color));
+            String hex = String.format("%08X", BlockDataUtil.argbToRgba(color));
             ctx.getSource().sendSuccess(() -> Component.literal("LT color at " + pos + " = #" + hex), false);
         }
         return 1;

@@ -33,31 +33,6 @@ public class LTBlockDataCache {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final Map<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
     private static final long REMOVAL_DELAY_MS = 30_000;
-    /**
-     * Multiply two ARGB colors.
-     * RGB channels are multiplied (component-wise) and normalized to 0-255.
-     * Alpha uses the alpha from the overlay color (cached).
-     */
-    public static int multiplyArgb(int base, int overlay) {
-        int baseA = (base >> 24) & 0xFF;
-        int baseR = (base >> 16) & 0xFF;
-        int baseG = (base >> 8) & 0xFF;
-        int baseB = base & 0xFF;
-
-        int overA = (overlay >> 24) & 0xFF;
-        int overR = (overlay >> 16) & 0xFF;
-        int overG = (overlay >> 8) & 0xFF;
-        int overB = overlay & 0xFF;
-
-        // Multiply RGB (normalized)
-        int r = (baseR * overR) / 255;
-        int g = (baseG * overG) / 255;
-        int b = (baseB * overB) / 255;
-        // Use overlay alpha (or optionally combine)
-        int a = overA;
-
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
 
     /**
      * RGBA format
@@ -127,128 +102,6 @@ public class LTBlockDataCache {
         return 0;
     }
 
-    /**
-     * 将 ARGB 格式的颜色值转换为 RGBA 格式。
-     *
-     * <p>输入格式为 0xAARRGGBB（Android/Windows 标准），输出格式为 0xRRGGBBAA（OpenGL/RGBA 标准）。
-     *
-     * @param argbColor ARGB 格式的颜色值，其中：
-     * <ul>
-     *  <li>bits 31-24: Alpha（透明度）</li>
-     *  <li>bits 23-16: Red（红色）</li>
-     *  <li>bits 15-8:  Green（绿色）</li>
-     *  <li>bits 7-0:   Blue（蓝色）</li>
-     * </ul>
-     * @return RGBA 格式的颜色值，其中：
-     * <ul>
-     *  <li>bits 31-24: Red（红色）</li>
-     *  <li>bits 23-16: Green（绿色）</li>
-     *  <li>bits 15-8:  Blue（蓝色）</li>
-     *  <li>bits 7-0:   Alpha（透明度）</li>
-     * </ul>
-     *
-     */
-    public static int argbToRgba(int argbColor) {
-        int alpha = (argbColor >> 24) & 0xFF;
-        int red   = (argbColor >> 16) & 0xFF;
-        int green = (argbColor >> 8)  & 0xFF;
-        int blue  = argbColor & 0xFF;
-
-        return (red << 24) | (green << 16) | (blue << 8) | alpha;
-    }
-
-    public static BlockState parseBlockStateString(String blockStateStr, BlockPos pos) {
-        if (blockStateStr == null || blockStateStr.isEmpty()) {
-            LOGGER.error("null blockStateString at {}", pos);
-            return Blocks.AIR.defaultBlockState();
-        }
-        if (blockStateStr.equals("littletiles:missing")) {
-            LOGGER.debug("Found LT \"littletiles:missing\" value at {}, converted to stone", pos);
-            return Blocks.STONE.defaultBlockState();
-        }
-
-        String blockName = BlockDataUtil.extractBlockName(blockStateStr);
-        if (blockName == null) {
-            LOGGER.error("Failed to extract block name from '{}' at {}", blockStateStr, pos);
-            return Blocks.AIR.defaultBlockState();
-        }
-
-        try {
-            ResourceLocation blockId = ResourceLocation.parse(blockName);
-            Block block = BuiltInRegistries.BLOCK.get(blockId);
-            if (block == Blocks.AIR) {
-                LOGGER.warn("Unknown block ID '{}' at {}, using air", blockName, pos);
-            }
-            return block.defaultBlockState();
-        } catch (Exception e) {
-            LOGGER.error("Failed to parse block ID '{}' from string {} at {}", blockName, blockStateStr, pos, e);
-            return Blocks.AIR.defaultBlockState();
-        }
-    }
-    @Deprecated
-    public static BlockState parseBlockStateStringLegacy(String blockStateStr, BlockPos pos) {
-        if (blockStateStr == null || blockStateStr.isEmpty()) {
-            LOGGER.error("null blockStateString at {}", pos);
-            return Blocks.AIR.defaultBlockState();
-        }
-        try {
-            //sometimes the blockStateStr could be "littletiles:missing" (mostly caused by missing other mod), temporarily convert to stone
-            if(blockStateStr.equals("littletiles:missing")){
-                LOGGER.debug("Found LT \"littletiles:missing\" value at {}, converted to stone", pos);
-                return Blocks.STONE.defaultBlockState();
-            }
-
-            String blockName;
-            String stateStr = null;
-
-            // Determine whether there is a [state] section
-            int stateStart = blockStateStr.indexOf('[');
-            if (stateStart != -1) {
-                blockName = blockStateStr.substring(0, stateStart);
-                stateStr = blockStateStr.substring(stateStart + 1, blockStateStr.length() - 1);
-            } else {
-                blockName = blockStateStr;
-            }
-            // Retrieve the Block
-            ResourceLocation blockId = ResourceLocation.parse(blockName);
-            Block block = BuiltInRegistries.BLOCK.get(blockId);
-            BlockState state = block.defaultBlockState();
-
-            // Parse properties and apply values
-            if (stateStr != null && !stateStr.isEmpty()) {
-                String[] properties = stateStr.split(",");
-                for (String prop : properties) {
-                    String[] kv = prop.split("=");
-                    if (kv.length != 2) continue;
-
-                    String key = kv[0];
-                    String value = kv[1];
-
-                    Property<?> property = state.getBlock().getStateDefinition().getProperty(key);
-                    if (property != null) {
-                        Optional<?> parsedValue = property.getValue(value);
-                        if (parsedValue.isPresent()) {
-                            // Note the generic cast: must be done safely
-                            state = safeSetProperty(state, property, parsedValue.get());
-                        }
-                    }
-                }
-            }
-
-            return state;
-
-        } catch (Exception e) {
-            LOGGER.error("Failed to parse LT BlockState string {} at {}",blockStateStr, pos, e);
-            return Blocks.AIR.defaultBlockState(); // fallback
-        }
-    }
-    // Helper: bypass generic restriction and safely set property
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    private static <T extends Comparable<T>> BlockState safeSetProperty(BlockState state, Property<?> property, Object value) {
-        return state.setValue((Property<T>) property, (T) value);
-    }
-
     public static boolean put(BlockPos pos, String blockStr, int color) {
         ChunkPos chunkPos = new ChunkPos(pos);
 
@@ -264,7 +117,7 @@ public class LTBlockDataCache {
             return false;
         }
 
-        BlockState convertedState = parseBlockStateString(blockStr, pos);
+        BlockState convertedState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, true);
         if (convertedState == null) {
             LOGGER.error("Fail to convert to BlockState for LT at {}", pos);
             return false;
@@ -425,7 +278,7 @@ public class LTBlockDataCache {
                 int color = data.getColor();
                 ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                 sb.append("  ").append(pos.getX()).append(", ").append(pos.getY()).append(", ").append(pos.getZ())
-                        .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", argbToRgba(color))).append("\n");
+                        .append(" -> ").append(rl).append(" color: #").append(String.format("%08X", BlockDataUtil.argbToRgba(color))).append("\n");
             }
         }
         sb.append("Total entries: ").append(total).append("\n");
@@ -447,7 +300,7 @@ public class LTBlockDataCache {
             for (Map.Entry<BlockPos, DataBaseCache.BlockDataEntry> entry : tempMap.entrySet()) {
                 BlockPos pos = entry.getKey();
                 DataBaseCache.BlockDataEntry dataEntry = entry.getValue();
-                BlockState state = parseBlockStateString(dataEntry.blockStateStr, pos);
+                BlockState state = BlockDataUtil.toDefaultBlockState(dataEntry.blockStateStr, pos, LOGGER, true);
                 if (state != null) {
                     inner.put(pos.immutable(), new LTBlockData(state, dataEntry.color));
                 }
