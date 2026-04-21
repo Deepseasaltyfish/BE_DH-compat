@@ -6,15 +6,14 @@ import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
-import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 public class DataBaseCache {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(DataBaseCache.class);
 
-    private static final String TABLE_DATA = "block_data";
     private static final String TABLE_DICT = "block_state_dict";
     private static final String COL_X = "x";
     private static final String COL_Y = "y";
@@ -27,12 +26,53 @@ public class DataBaseCache {
 
     public static final int CURRENT_VERSION = 1;
 
+    // 缓存已创建过的表（避免重复执行 CREATE TABLE）
+    private static final ConcurrentSkipListSet<String> createdTables = new ConcurrentSkipListSet<>();
+
+    // 根据 modId 获取表名
+    private static String getTableName(String modId) {
+        return modId + "_block_data";
+    }
+
+    // 确保某个 mod 的 block_data 表已创建
+    private static void ensureTableExists(String modId) {
+        if (!DatabaseManager.isReady()) return;
+        if (createdTables.contains(modId)) return;
+
+        String tableName = getTableName(modId);
+        String sql = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
+                COL_X + " INT NOT NULL, " +
+                COL_Y + " INT NOT NULL, " +
+                COL_Z + " INT NOT NULL, " +
+                COL_CHUNK_X + " INT NOT NULL, " +
+                COL_CHUNK_Z + " INT NOT NULL, " +
+                COL_STATE_ID + " INT NOT NULL, " +
+                COL_COLOR + " INT NOT NULL, " +
+                COL_VERSION + " INT DEFAULT " + CURRENT_VERSION + ", " +
+                "PRIMARY KEY (" + COL_X + ", " + COL_Y + ", " + COL_Z + "))";
+        DatabaseManager.executeUpdate(sql);
+
+        String idxChunk = "CREATE INDEX IF NOT EXISTS idx_" + tableName + "_chunk ON " + tableName + " (" + COL_CHUNK_X + ", " + COL_CHUNK_Z + ")";
+        DatabaseManager.executeUpdate(idxChunk);
+
+        createdTables.add(modId);
+        LOGGER.debug("Table {} ensured for mod {}", tableName, modId);
+    }
+
+    // 初始化字典表（全局一次）
+    public static void initTable() {
+        if (!DatabaseManager.isReady()) return;
+        String dictSQL = "CREATE TABLE IF NOT EXISTS " + TABLE_DICT + " (id INTEGER PRIMARY KEY, state TEXT UNIQUE NOT NULL)";
+        DatabaseManager.executeUpdate(dictSQL);
+        LOGGER.info("Table {} initialized", TABLE_DICT);
+    }
+
     // Cache for state string -> ID, bound to current database path
     private static final ConcurrentHashMap<String, Integer> stateIdCache = new ConcurrentHashMap<>();
     private static volatile String currentDbPathForCache = null;
 
     private static void ensureCacheForCurrentDb() {
-        Path currentPath = DatabaseManager.getCurrentDbPath();
+        java.nio.file.Path currentPath = DatabaseManager.getCurrentDbPath();
         String pathStr = currentPath != null ? currentPath.toString() : null;
         if (!pathStr.equals(currentDbPathForCache)) {
             stateIdCache.clear();
@@ -67,44 +107,19 @@ public class DataBaseCache {
             stateIdCache.put(blockStateStr, id[0]);
             return id[0];
         }
-        // 降级返回0（不应发生）
         LOGGER.error("Failed to get or create state id for {}", blockStateStr);
         return 0;
     }
 
-    public static void initTable() {
-        if (!DatabaseManager.isReady()) {
-            LOGGER.info("DataBase not ready, will not init");
-            return;
-        }
-
-        String dictSQL = "CREATE TABLE IF NOT EXISTS " + TABLE_DICT + " (id INTEGER PRIMARY KEY, state TEXT UNIQUE NOT NULL)";
-        DatabaseManager.executeUpdate(dictSQL);
-
-        String dataSQL = "CREATE TABLE IF NOT EXISTS " + TABLE_DATA + " (" +
-                COL_X + " INT NOT NULL, " +
-                COL_Y + " INT NOT NULL, " +
-                COL_Z + " INT NOT NULL, " +
-                COL_CHUNK_X + " INT NOT NULL, " +
-                COL_CHUNK_Z + " INT NOT NULL, " +
-                COL_STATE_ID + " INT NOT NULL, " +
-                COL_COLOR + " INT NOT NULL, " +
-                COL_VERSION + " INT DEFAULT " + CURRENT_VERSION + ", " +
-                "PRIMARY KEY (" + COL_X + ", " + COL_Y + ", " + COL_Z + "))";
-        DatabaseManager.executeUpdate(dataSQL);
-
-        String idxChunk = "CREATE INDEX IF NOT EXISTS idx_" + TABLE_DATA + "_chunk ON " + TABLE_DATA + " (" + COL_CHUNK_X + ", " + COL_CHUNK_Z + ")";
-        DatabaseManager.executeUpdate(idxChunk);
-
-        LOGGER.info("Tables {} and {} initialized", TABLE_DICT, TABLE_DATA);
-    }
-
     public static void putBlockData(String modId, BlockPos pos, String blockStateStr, int color, int version) {
         if (!DatabaseManager.isReady()) return;
+        ensureTableExists(modId);  // 确保表存在
+
         int stateId = getOrCreateStateId(blockStateStr);
         int chunkX = pos.getX() >> 4;
         int chunkZ = pos.getZ() >> 4;
-        String sql = "INSERT OR REPLACE INTO " + TABLE_DATA + " (" +
+        String tableName = getTableName(modId);
+        String sql = "INSERT OR REPLACE INTO " + tableName + " (" +
                 COL_X + ", " + COL_Y + ", " + COL_Z + ", " +
                 COL_CHUNK_X + ", " + COL_CHUNK_Z + ", " +
                 COL_STATE_ID + ", " + COL_COLOR + ", " + COL_VERSION +
@@ -118,24 +133,13 @@ public class DataBaseCache {
         }
     }
 
-    public static void putBlockDataSync(String modId, BlockPos pos, String blockStateStr, int color, int version) {
-        if (!DatabaseManager.isReady()) return;
-        int stateId = getOrCreateStateId(blockStateStr);
-        int chunkX = pos.getX() >> 4;
-        int chunkZ = pos.getZ() >> 4;
-        String sql = "INSERT OR REPLACE INTO " + TABLE_DATA + " (" +
-                COL_X + ", " + COL_Y + ", " + COL_Z + ", " +
-                COL_CHUNK_X + ", " + COL_CHUNK_Z + ", " +
-                COL_STATE_ID + ", " + COL_COLOR + ", " + COL_VERSION +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        DatabaseManager.executeUpdate(sql, pos.getX(), pos.getY(), pos.getZ(), chunkX, chunkZ, stateId, color, version);
-        LOGGER.debug("putBlockData sync: mod={}, pos={}, stateId={}, color=0x{}", modId, pos, stateId, Integer.toHexString(color));
-    }
-
     public static void loadChunk(ChunkPos chunkPos, String modId, Map<BlockPos, ? super BlockDataEntry> targetMap) {
         if (!DatabaseManager.isReady()) return;
+        String tableName = getTableName(modId);
+        // 注意：表可能不存在，此时直接返回（没有数据）
+        // 为了安全，可以尝试查询，如果表不存在 SQLite 会报错，我们捕获异常忽略
         String sql = "SELECT d." + COL_X + ", d." + COL_Y + ", d." + COL_Z + ", s.state, d." + COL_COLOR + ", d." + COL_VERSION +
-                " FROM " + TABLE_DATA + " d JOIN " + TABLE_DICT + " s ON d." + COL_STATE_ID + " = s.id " +
+                " FROM " + tableName + " d JOIN " + TABLE_DICT + " s ON d." + COL_STATE_ID + " = s.id " +
                 "WHERE d." + COL_CHUNK_X + " = ? AND d." + COL_CHUNK_Z + " = ?";
         DatabaseManager.executeQuery(sql, (rs) -> {
             try {
@@ -159,7 +163,8 @@ public class DataBaseCache {
 
     public static Integer getColor(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return null;
-        String sql = "SELECT " + COL_COLOR + " FROM " + TABLE_DATA + " WHERE " +
+        String tableName = getTableName(modId);
+        String sql = "SELECT " + COL_COLOR + " FROM " + tableName + " WHERE " +
                 COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
         final int[] result = {-1};
         DatabaseManager.executeQuery(sql, (rs) -> {
@@ -172,19 +177,21 @@ public class DataBaseCache {
 
     public static void removeBlockData(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return;
-        String sql = "DELETE FROM " + TABLE_DATA + " WHERE " + COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
+        String tableName = getTableName(modId);
+        String sql = "DELETE FROM " + tableName + " WHERE " + COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
         DatabaseManager.executeUpdate(sql, pos.getX(), pos.getY(), pos.getZ());
         LOGGER.debug("removeBlockData: mod={}, pos={}", modId, pos);
     }
 
     public static void removeChunk(String modId, ChunkPos chunkPos) {
         if (!DatabaseManager.isReady()) return;
-        String sql = "DELETE FROM " + TABLE_DATA + " WHERE " + COL_CHUNK_X + " = ? AND " + COL_CHUNK_Z + " = ?";
+        String tableName = getTableName(modId);
+        String sql = "DELETE FROM " + tableName + " WHERE " + COL_CHUNK_X + " = ? AND " + COL_CHUNK_Z + " = ?";
         DatabaseManager.executeUpdate(sql, chunkPos.x, chunkPos.z);
         LOGGER.debug("removeChunk: mod={}, chunk={}", modId, chunkPos);
     }
 
-    public static void vacuum() {//danger
+    public static void vacuum() {
         if (!DatabaseManager.isReady()) return;
         DatabaseManager.executeUpdate("VACUUM");
         LOGGER.info("Database vacuumed");
