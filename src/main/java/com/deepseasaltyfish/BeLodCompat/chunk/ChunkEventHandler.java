@@ -13,7 +13,6 @@ import com.seibel.distanthorizons.core.config.Config;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.api.distmarker.Dist;
@@ -36,10 +35,12 @@ public class ChunkEventHandler {
     @SubscribeEvent
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (!(event.getChunk() instanceof LevelChunk chunk)) return;
+        Level level = chunk.getLevel();
+        String dimName = level.dimension().location().toString(); // 获取维度名称
         chunk.getBlockEntities().forEach((pos, be) -> {
             CompoundTag beTag = be.saveWithFullMetadata();
             LOGGER.debug("onChunkWrite tag: {} at pos: {}", beTag, pos);
-            BlockDataUtil.tryExtractBlockData(beTag, pos);
+            BlockDataUtil.tryExtractBlockData(beTag, pos, dimName); // 传入 dimName
         });
     }
 
@@ -60,9 +61,10 @@ public class ChunkEventHandler {
         if (level.isClientSide()) {
             Path dbFile = levelDbMap.remove(level.dimension().location().toString());
             if (dbFile != null) {
+                String dimName = level.dimension().location().toString();
                 DatabaseManager.close(dbFile);
-                IRBlockDataCache.clearForDimension(dbFile);
-                LTBlockDataCache.clearForDimension(dbFile);
+                IRBlockDataCache.clearForDimension(dimName);  // 参数改为 dimName
+                LTBlockDataCache.clearForDimension(dimName);  // 参数改为 dimName
                 LOGGER.info("Closed database and cleared cache for dimension: {}", dbFile);
             } else {
                 LOGGER.info("No stored dbFile for level: {}", level);
@@ -86,7 +88,6 @@ public class ChunkEventHandler {
     // 替换 pendingDbFile 为 pendingLevel 和 pendingDimName
     private static Level pendingLevel = null;
     private static String pendingDimName = null;
-    private static Path currentDbFile = null;
     // 添加在成员变量区域
     private static final ConcurrentHashMap<String, Path> levelDbMap = new ConcurrentHashMap<>();
 
@@ -152,14 +153,15 @@ public class ChunkEventHandler {
         return dbFile;
     }
 
+    public static Path getDbFileForDimension(String dimName) {
+        return levelDbMap.get(dimName);
+    }
+
     // 打开数据库并初始化相关缓存
     private static void openDatabase(Level level, Path dbFile) {
         LOGGER.info("openDatabase called with dbFile: {}", dbFile);
         DatabaseManager.open(dbFile);
         DataBaseCache.initTable(dbFile);
-        currentDbFile = dbFile;
         levelDbMap.put(level.dimension().location().toString(), dbFile);
-        LTBlockDataCache.setCurrentDbFile(dbFile);
-        IRBlockDataCache.setCurrentDbFile(dbFile);
     }
 }

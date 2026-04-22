@@ -24,7 +24,6 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
     {
         if (DEAD.get()) return;
-        //can get e.value.levelWrapper.getDimensionName();
 
         IDhApiBlockStateWrapper current = e.value.currentBlock;
         String LtBaseId = BlockDataUtil.extractLtBaseId(current.getSerialString());
@@ -38,14 +37,13 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
         );
         BlockState state = null;
 
-        if (LtBaseId.equals("littletiles:tiles")) {//TODO: we still get null sometimes, though fine most of the time
-            state = LTBlockDataCache.getBlockStateAt(pos);
+        String dimName = e.value.levelWrapper.getDimensionName(); // 获取维度名称
+
+        if (LtBaseId.equals("littletiles:tiles")) {
+            state = LTBlockDataCache.getBlockStateAt(pos, dimName);
         } else if (IrBaseId.equals("immersiverailroading:block_rail") || IrBaseId.equals("immersiverailroading:block_rail_gag")) {
-            state = IRBlockDataCache.getBlockStateAt(pos);
-        }else {
-            //not sure but these may make null value of getBlockStateAt happens much more
-//            LTBlockDataCache.removeAt(pos);
-//            IRBlockDataCache.removeAt(pos);
+            state = IRBlockDataCache.getBlockStateAt(pos, dimName);
+        } else {
             return;
         }
 

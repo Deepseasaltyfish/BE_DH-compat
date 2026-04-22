@@ -1,5 +1,6 @@
 package com.deepseasaltyfish.BeLodCompat.common.cache;
 
+import com.deepseasaltyfish.BeLodCompat.chunk.ChunkEventHandler;
 import com.deepseasaltyfish.BeLodCompat.common.DataBaseCache;
 import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
@@ -27,15 +28,13 @@ public class LTBlockDataCache {
     private static final String MOD_ID = "littletiles";
     private static final DebugLogger LOGGER = DebugLogger.getLogger(LTBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
-    private static final ConcurrentHashMap<Path, ChunkCache<LTBlockData>> cacheMap = new ConcurrentHashMap<>();
-    private static Path currentDbFile = null;
-    public static void setCurrentDbFile(Path dbFile) {
-        currentDbFile = dbFile;
+    private static final ConcurrentHashMap<String, ChunkCache<LTBlockData>> cacheMap = new ConcurrentHashMap<>();
+
+    private static ChunkCache<LTBlockData> getCache(String dimName) {
+        if (dimName == null) return null;
+        return cacheMap.computeIfAbsent(dimName, d -> new ChunkCache<>(REMOVAL_DELAY_MS));
     }
-    private static ChunkCache<LTBlockData> getCache() {
-        if (currentDbFile == null) return null;
-        return cacheMap.computeIfAbsent(currentDbFile, p -> new ChunkCache<>(REMOVAL_DELAY_MS));
-    }
+
     private static class LTBlockData {
         private final BlockState blockState;
         private final int color; // ARGB
@@ -53,14 +52,14 @@ public class LTBlockDataCache {
      * @param contentTag the block entity NBT (content tag of tiles)
      * @return true if successfully cached, false if fallback used
      */
-    public static boolean extractLTColor(BlockPos pos, CompoundTag contentTag) {
+    public static boolean extractLTColor(BlockPos pos, CompoundTag contentTag, String dimName) {
         try {
             CompoundTag tilesTag = contentTag.getCompound("tiles");
             if (!tilesTag.isEmpty()) {
                 String firstTileId = tilesTag.getAllKeys().iterator().next();
                 Tag tileData = tilesTag.get(firstTileId);  // This is a ListTag
                 int color = extractColorFromTileData(tileData);
-                return put(pos, firstTileId, color);
+                return put(pos, firstTileId, color, dimName);
             }
 
             ListTag childrenList = contentTag.getList("children", Tag.TAG_COMPOUND);
@@ -71,7 +70,7 @@ public class LTBlockDataCache {
                     String firstTileId = tiles.getAllKeys().iterator().next();
                     Tag tileData = tiles.get(firstTileId);
                     int color = extractColorFromTileData(tileData);
-                    return put(pos, firstTileId, color);
+                    return put(pos, firstTileId, color, dimName);
                 }
             }
 
@@ -99,25 +98,29 @@ public class LTBlockDataCache {
         return 0;
     }
 
-    public static boolean put(BlockPos pos, String blockStr, int color) {
+    public static boolean put(BlockPos pos, String blockStr, int color, String dimName) {
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile == null) {
+            LOGGER.error("No database for dimension: {}", dimName);
+            return false;
+        }
         String blockName = BlockDataUtil.extractBlockName(blockStr);
         if (blockName == null) {
             LOGGER.error("Failed to extract block name from '{}' at {}", blockStr, pos);
             return false;
         }
-
         BlockState newState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, true);
         LTBlockData newData = new LTBlockData(newState, color);
-        ChunkCache<LTBlockData> cache = getCache();
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache == null) return false;
         boolean changed = cache.put(pos, newData, (old, fresh) ->
                 old.getBlockState().equals(fresh.getBlockState()) && old.getColor() == fresh.getColor());
 
-        if (changed && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
+        if (changed && DatabaseManager.isReady(dbFile)) {
             if (color != 0xFFFFFFFF) {
-                DataBaseCache.putBlockData(currentDbFile, MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
+                DataBaseCache.putBlockData(dbFile, MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
             } else {
-                DataBaseCache.removeBlockData(currentDbFile, MOD_ID, pos);
+                DataBaseCache.removeBlockData(dbFile, MOD_ID, pos);
             }
         }
         return true;
@@ -133,20 +136,20 @@ public class LTBlockDataCache {
      * @param pos the block position
      * @return the cached BlockState, or null if not found
      */
-    public static BlockState getBlockStateAt(BlockPos pos) {
+    public static BlockState getBlockStateAt(BlockPos pos, String dimName) {
         if (pos == null) {
             LOGGER.error("LTBlockData getBlockStateAt called with null pos");
             return null;
         }
-        ChunkCache<LTBlockData> cache = getCache();
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache == null) {
-            LOGGER.warn("No cache available for current database");
+            LOGGER.warn("No cache for dimension: {}", dimName);
             return Blocks.BLACK_WOOL.defaultBlockState();
         }
         LTBlockData data = cache.get(pos);
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
-            LOGGER.warn("No LTBlockData at chunk {} block {}", cp, pos);
+            LOGGER.debug("No LTBlockData at chunk {} block {} for dimension {}", cp, pos, dimName);
             return Blocks.BLACK_WOOL.defaultBlockState();
         }
         return data.getBlockState();
@@ -155,59 +158,69 @@ public class LTBlockDataCache {
     /**
      * Retrieve color (RGBA) at position, returns 0 if missing
      */
-    public static int getColorAt(BlockPos pos) {
+    public static int getColorAt(BlockPos pos, String dimName) {
         if (pos == null) {
-            LOGGER.error("LTBlockData getBlockStateAt called with null pos");
+            LOGGER.error("LTBlockData getColorAt called with null pos");
             return 0;
         }
-        ChunkCache<LTBlockData> cache = getCache();
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache == null) return 0;
         LTBlockData data = cache.get(pos);
-        if (data == null && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
-            loadChunkFromDB(new ChunkPos(pos));
-            data = cache.get(pos);
+        if (data == null) {
+            Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+            if (dbFile != null && DatabaseManager.isReady(dbFile)) {
+                loadChunkFromDB(new ChunkPos(pos), dimName);
+                data = cache.get(pos);
+            }
         }
         return data != null ? data.getColor() : 0;
     }
 
-    public static void removeChunkInMemory(ChunkPos chunkPos) {
-        ChunkCache<LTBlockData> cache = getCache();
+    public static void removeChunkInMemory(ChunkPos chunkPos, String dimName) {
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache != null) {
             cache.removeChunkInMemory(chunkPos, (cp, removed) ->
-                    LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
+                    LOGGER.debug("Delayed removal of chunk {} with {} entries for dimension {}", cp, removed.size(), dimName));
         }
     }
-    public static void removeAt(BlockPos pos) {
-        ChunkCache<LTBlockData> cache = getCache();
+
+    public static void removeAt(BlockPos pos, String dimName) {
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache != null) cache.removeAt(pos);
-        if (currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
-            DataBaseCache.removeBlockData(currentDbFile, MOD_ID, pos);
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile != null && DatabaseManager.isReady(dbFile)) {
+            DataBaseCache.removeBlockData(dbFile, MOD_ID, pos);
         }
     }
+
     public static void clearAll() {
         cacheMap.values().forEach(ChunkCache::clearAll);
         cacheMap.clear();
         LOGGER.debug("Cleared all LT memory caches for all dimensions");
     }
-    public static void clearForDimension(Path dbFile) {
-        ChunkCache<LTBlockData> cache = cacheMap.remove(dbFile);
+
+    public static void clearForDimension(String dimName) {
+        ChunkCache<LTBlockData> cache = cacheMap.remove(dimName);
         if (cache != null) {
             cache.clearAll();
+            LOGGER.debug("Cleared cache for dimension {}", dimName);
         }
     }
-    public static boolean contains(BlockPos pos) {
-        ChunkCache<LTBlockData> cache = getCache();
+
+    public static boolean contains(BlockPos pos, String dimName) {
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         return cache != null && cache.contains(pos);
     }
-    public static int getCacheSize() {
-        ChunkCache<LTBlockData> cache = getCache();
+
+    public static int getCacheSize(String dimName) {
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         return cache != null ? cache.getChunkCount() : 0;
     }
 
     //debug
-    public static String dumpAllEntries() {
-        ChunkCache<LTBlockData> cache = getCache();
-        if (cache == null) return "No cache available";
+    public static String dumpAllEntries(String dimName) {
+        ChunkCache<LTBlockData> cache = getCache(dimName);
+        if (cache == null) return "No cache available for dimension: " + dimName;
         return cache.dumpToString("LTBlockDataCache", data -> {
             ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(data.getBlockState().getBlock());
             return rl.toString() + " color: #" + String.format("%08X", BlockDataUtil.argbToRgba(data.getColor()));
@@ -215,13 +228,14 @@ public class LTBlockDataCache {
     }
 
     //database
-    private static void loadChunkFromDB(ChunkPos chunkPos) {
-        if (currentDbFile == null) return;
-        ChunkCache<LTBlockData> cache = getCache();
+    private static void loadChunkFromDB(ChunkPos chunkPos, String dimName) {
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile == null) return;
+        ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache == null) return;
         cache.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
             BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, true);
             return new LTBlockData(state, entry.color);
-        }, currentDbFile, LOGGER);
+        }, dbFile, LOGGER);
     }
 }

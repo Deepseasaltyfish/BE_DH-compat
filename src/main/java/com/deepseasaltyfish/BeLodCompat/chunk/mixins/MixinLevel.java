@@ -29,9 +29,10 @@ public abstract class MixinLevel {
             String id = rl.toString();
             if (id.equals("littletiles:tiles") || id.equals("immersiverailroading:block_rail") || id.equals("immersiverailroading:block_rail_gag")) {
                 if (newState.isAir() || !newState.hasBlockEntity()) {
-                    bE_LOD_compat$LOGGER.debug("Removing cache at {} because oldState = {}, newState = {}", pos, oldState, newState);
-                    LTBlockDataCache.removeAt(pos);
-                    IRBlockDataCache.removeAt(pos);
+                    String dimName = level.dimension().location().toString();
+                    bE_LOD_compat$LOGGER.debug("Removing cache at {} for dimension {} because oldState = {}, newState = {}", pos, dimName, oldState, newState);
+                    LTBlockDataCache.removeAt(pos, dimName);
+                    IRBlockDataCache.removeAt(pos, dimName);
                 }
             }
         }

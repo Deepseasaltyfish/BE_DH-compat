@@ -5,10 +5,13 @@ import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
 import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.seibel.distanthorizons.core.dataObjects.fullData.sources.FullDataSourceV2;
 import com.seibel.distanthorizons.core.pos.blockPos.DhBlockPos;
+import com.seibel.distanthorizons.core.wrapperInterfaces.world.IClientLevelWrapper;
 import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.BiomeWrapper;
 import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.ClientBlockStateColorCache;
 import net.minecraft.core.BlockPos;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,7 +25,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * */
 @Deprecated
 @Mixin(ClientBlockStateColorCache.class)
-public abstract class MixinClientBlockStateColorCache {//TODO: we will remove this mixin after DH official API get ready
+public abstract class MixinClientBlockStateColorCache {
+    @Final
+    @Shadow private IClientLevelWrapper clientLevelWrapper;
     @Unique
     private static final DebugLogger bE_LOD_compat$LOGGER = DebugLogger.getLogger(MixinClientBlockStateColorCache.class);
 
@@ -30,7 +35,9 @@ public abstract class MixinClientBlockStateColorCache {//TODO: we will remove th
     private void onGetColorReturn(BiomeWrapper biomeWrapper, FullDataSourceV2 fullDataSource, DhBlockPos blockPos, CallbackInfoReturnable<Integer> cir) {
         int originalColor = cir.getReturnValue();
         BlockPos mcPos = new BlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-        int cachedColor = LTBlockDataCache.getColorAt(mcPos);
+        // 通过 clientLevelWrapper 获取维度名称
+        String dimName = clientLevelWrapper != null ? clientLevelWrapper.getDimensionName() : "unknown";
+        int cachedColor = LTBlockDataCache.getColorAt(mcPos, dimName);
         if (cachedColor != 0 && cachedColor != 0xFFFFFFFF) {
             int blended = BlockDataUtil.multiplyArgb(originalColor, cachedColor);
             bE_LOD_compat$LOGGER.debug("origin: #{}, cached: #{}, blended: #{} at {}",

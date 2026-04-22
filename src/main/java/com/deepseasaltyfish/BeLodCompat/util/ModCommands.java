@@ -47,7 +47,8 @@ public class ModCommands {
 
     private static int getColorAt(CommandContext<CommandSourceStack> ctx, int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
-        int color = LTBlockDataCache.getColorAt(pos);
+        String dimName = ctx.getSource().getLevel().dimension().location().toString();
+        int color = LTBlockDataCache.getColorAt(pos, dimName);
         if (color == 0) {
             ctx.getSource().sendSuccess(() -> Component.literal("No LT color cached at " + pos), false);
         } else {
@@ -58,13 +59,15 @@ public class ModCommands {
     }
 
     private static int dumpIRCache(CommandContext<CommandSourceStack> ctx) {
-        String dump = IRBlockDataCache.dumpAllEntries();
+        String dimName = ctx.getSource().getLevel().dimension().location().toString();
+        String dump = IRBlockDataCache.dumpAllEntries(dimName);
         ctx.getSource().sendSuccess(() -> Component.literal(dump), false);
         return 1;
     }
 
     private static int dumpLTCache(CommandContext<CommandSourceStack> ctx) {
-        String dump = LTBlockDataCache.dumpAllEntries();
+        String dimName = ctx.getSource().getLevel().dimension().location().toString();
+        String dump = LTBlockDataCache.dumpAllEntries(dimName);
         ctx.getSource().sendSuccess(() -> Component.literal(dump), false);
         return 1;
     }
