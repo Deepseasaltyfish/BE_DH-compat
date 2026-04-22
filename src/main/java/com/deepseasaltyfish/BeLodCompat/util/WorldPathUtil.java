@@ -10,8 +10,8 @@ public class WorldPathUtil {
     /**
      * Returns the actual root directory path of the current world (save).
      * For singleplayer: returns .minecraft/saves/<save_folder>/
-     * For multiplayer: returns .minecraft/config/belodcompat/servers/<server_address>/
-     * On server side: returns config/belodcompat/server/
+     * For multiplayer: returns .minecraft/config/bedhcompat/servers/<server_address>/
+     * On server side: returns config/bedhcompat/server/
      *
      * @param level the current level (world)
      * @return the root path for world data storage
@@ -19,7 +19,7 @@ public class WorldPathUtil {
     public static Path getWorldRootPath(Level level) {
         if (!level.isClientSide()) {
             // Server side fallback (should not be called normally)
-            return FMLPaths.CONFIGDIR.get().resolve("belodcompat").resolve("server");
+            return FMLPaths.CONFIGDIR.get().resolve("bedhcompat").resolve("server");
         }
         // Delegate to client-only implementation
         return getClientWorldRootPath();
@@ -34,10 +34,10 @@ public class WorldPathUtil {
         } else if (mc.getCurrentServer() != null) {
             // Multiplayer: use server address as identifier
             String serverIp = mc.getCurrentServer().ip.replace(':', '_').replace('/', '_');
-            return FMLPaths.CONFIGDIR.get().resolve("belodcompat").resolve("servers").resolve(serverIp);
+            return FMLPaths.CONFIGDIR.get().resolve("bedhcompat").resolve("servers").resolve(serverIp);
         } else {
             // Unknown client scenario
-            return FMLPaths.CONFIGDIR.get().resolve("belodcompat").resolve("unknown");
+            return FMLPaths.CONFIGDIR.get().resolve("bedhcompat").resolve("unknown");
         }
     }
 }

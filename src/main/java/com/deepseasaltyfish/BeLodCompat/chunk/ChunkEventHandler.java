@@ -70,7 +70,7 @@ public class ChunkEventHandler {
     private static void openDatabaseForClient(Level level) {
         Path worldRoot = WorldPathUtil.getWorldRootPath(level);
         String dimName = level.dimension().location().getPath().replace('/', '_');
-        Path dbFile = worldRoot.resolve("belodcompat").resolve(dimName + ".db");
+        Path dbFile = worldRoot.resolve("bedhcompat").resolve(dimName + ".db");
         LOGGER.info("World root path: {}", worldRoot);
 
         EDhApiWorldCompressionMode mode = Config.Common.LodBuilding.worldCompression.get();
