@@ -53,7 +53,7 @@ public class IRBlockDataCache {
     public static boolean extractIRColor(BlockPos pos, CompoundTag tag, boolean isParent, String dimName) {
         Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
         if (dbFile == null) {
-            LOGGER.error("IrExtract: No database for dimension: {}", dimName);
+            LOGGER.warn("IrExtract: No database for dimension: {}", dimName);
             return false;
         }
 
@@ -98,7 +98,8 @@ public class IRBlockDataCache {
                 }
             }
             String id = bedItem != null ? bedItem.getString("id") : parentId;
-            if (id.isEmpty()) { LOGGER.debug("Empty bedItem id at {}, using soul sand (handled by put fallback)", pos); }
+            if(id.isEmpty()) { LOGGER.debug("Empty bedItem id at {}, using soul sand (handled by put fallback)", pos); }
+            if(ModConfigs.replaceIrIfAir && id.equals("minecraft:air")) { id = ModConfigs.getValidatedOverrideId(); }
 
             return put(pos, id, parentPos, isParent, dimName);
         } catch (Exception e) {
@@ -160,6 +161,29 @@ public class IRBlockDataCache {
             ChunkPos cp = new ChunkPos(pos);
             LOGGER.debug("No IRBlockData at chunk {} block {} for dimension {}", cp, pos, dimName);
             return Blocks.BLACK_WOOL.defaultBlockState();
+        }
+
+        if (ModConfigs.getIrDataFromParentDirectly && data.getParentPos() != null && !data.getParentPos().equals(pos)) {
+            BlockPos parentPos = data.getParentPos();
+            ChunkCache<IRBlockData> parentCache = getCache(dimName);
+            if (parentCache == null) {
+                LOGGER.debug("No cache for dimension: {}", dimName);
+                return data.getBlockState();
+            }
+            IRBlockData parentData = parentCache.get(parentPos);
+            if (parentData == null) {
+                Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+                if (dbFile != null && DatabaseManager.isReady(dbFile)) {
+                    loadChunkFromDB(new ChunkPos(parentPos), dimName);
+                    parentData = parentCache.get(parentPos);
+                }
+            }
+            if (parentData != null) {
+                return parentData.getBlockState();
+            } else {
+                LOGGER.debug("Parent rail at {} not found for child at {}", parentPos, pos);
+                return data.getBlockState();
+            }
         }
         return data.getBlockState();
     }

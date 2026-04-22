@@ -101,7 +101,7 @@ public class LTBlockDataCache {
     public static boolean put(BlockPos pos, String blockStr, int color, String dimName) {
         Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
         if (dbFile == null) {
-            LOGGER.error("LtPut: No database for dimension: {}", dimName);
+            LOGGER.warn("LtPut: No database for dimension: {}", dimName);
             return false;
         }
         String blockName = BlockDataUtil.extractBlockName(blockStr);

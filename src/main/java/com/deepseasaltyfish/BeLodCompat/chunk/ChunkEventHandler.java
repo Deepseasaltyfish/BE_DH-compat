@@ -20,6 +20,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -49,8 +50,7 @@ public class ChunkEventHandler {
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         IRBlockDataCache.clearAll();
         LTBlockDataCache.clearAll();
-        // 关闭所有未关闭的连接
-        levelDbMap.values().forEach(dbFile -> DatabaseManager.close(dbFile));
+        levelDbMap.values().forEach(DatabaseManager::close);
         levelDbMap.clear();
         LOGGER.info("Disconnected, cleared all block data Cache and closed all DB connections");
     }
@@ -58,20 +58,24 @@ public class ChunkEventHandler {
     @SubscribeEvent
     public static void onWorldUnload(LevelEvent.Unload event) {
         Level level = (Level) event.getLevel();
-        if (level.isClientSide()) {
-            Path dbFile = levelDbMap.remove(level.dimension().location().toString());
-            if (dbFile != null) {
-                String dimName = level.dimension().location().toString();
-                DatabaseManager.close(dbFile);
-                IRBlockDataCache.clearForDimension(dimName);  // 参数改为 dimName
-                LTBlockDataCache.clearForDimension(dimName);  // 参数改为 dimName
-                LOGGER.info("Closed database and cleared cache for dimension: {}", dbFile);
-            } else {
-                LOGGER.info("No stored dbFile for level: {}", level);
-            }
+        String dimName = level.dimension().location().toString();
+        Path dbFile = levelDbMap.remove(dimName);
+        if (dbFile != null) {
+            DatabaseManager.close(dbFile);
+            IRBlockDataCache.clearForDimension(dimName);
+            LTBlockDataCache.clearForDimension(dimName);
+            LOGGER.info("Closed database and cleared cache for dimension: {}", dimName);
+        } else {
+            LOGGER.info("No stored dbFile for dimension: {}", dimName);
         }
     }
 
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        levelDbMap.values().forEach(DatabaseManager::close);
+        levelDbMap.clear();
+        LOGGER.info("Server stopped, closed all remaining DB connections");
+    }
     @OnlyIn(Dist.CLIENT)
     private static void checkDhCompressionMode() {
         EDhApiWorldCompressionMode mode = Config.Common.LodBuilding.worldCompression.get();
@@ -131,7 +135,6 @@ public class ChunkEventHandler {
         }
     }
 
-    // 辅助方法：根据 Level 生成数据库文件路径
     private static Path getDbFileForLevel(Level level) {
         Path worldRoot = WorldPathUtil.getWorldRootPath(level);
         String dimName = level.dimension().location().getPath().replace('/', '_');

@@ -17,6 +17,12 @@ public class ModConfigs {
             "If the ID is invalid or the block does not exist, falls back to 'minecraft:soul_sand'.")
     private static volatile String overrideIrRailBlockId = "minecraft:soul_sand";
 
+    @CfgConfig.Comment("bedFill color will be correct faster, may slow down speed.")
+    public static volatile boolean getIrDataFromParentDirectly = false;
+
+    @CfgConfig.Comment("Replace the color if IR bedFill is Air.")
+    public static volatile boolean replaceIrIfAir = false;
+
     @CfgConfig.Comment("Enable database caching (requires restart)")
     public static boolean enableDatabase = true;
 
