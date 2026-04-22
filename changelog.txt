@@ -1,3 +1,4 @@
 -0.1-1.20.1 initial support for LittleTiles and ImmersiveRailroading BLockEntities
 -0.2-1.20.1 refactor mod id and mod name
 -0.3-1.20.1 add IR rail bed fill support (need future IR update), fix LT color extract method
+-0.5-1.20.1 add full support for sqlite database, LT color and IR bedFill extract
