@@ -25,18 +25,17 @@ import java.util.concurrent.*;
 
 public class LTBlockDataCache {
     private static final String MOD_ID = "littletiles";
-    //TODO: we should store these cache in region instead of generate them frequently
     private static final DebugLogger LOGGER = DebugLogger.getLogger(LTBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
-    private static final ChunkCache<LTBlockDataCache.LTBlockData> CACHE = new ChunkCache<>(REMOVAL_DELAY_MS);
+    private static final ConcurrentHashMap<Path, ChunkCache<LTBlockData>> cacheMap = new ConcurrentHashMap<>();
     private static Path currentDbFile = null;
     public static void setCurrentDbFile(Path dbFile) {
         currentDbFile = dbFile;
     }
-
-    /**
-     * RGBA format
-     */
+    private static ChunkCache<LTBlockData> getCache() {
+        if (currentDbFile == null) return null;
+        return cacheMap.computeIfAbsent(currentDbFile, p -> new ChunkCache<>(REMOVAL_DELAY_MS));
+    }
     private static class LTBlockData {
         private final BlockState blockState;
         private final int color; // ARGB
@@ -109,7 +108,9 @@ public class LTBlockDataCache {
 
         BlockState newState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, true);
         LTBlockData newData = new LTBlockData(newState, color);
-        boolean changed = CACHE.put(pos, newData, (old, fresh) ->
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache == null) return false;
+        boolean changed = cache.put(pos, newData, (old, fresh) ->
                 old.getBlockState().equals(fresh.getBlockState()) && old.getColor() == fresh.getColor());
 
         if (changed && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
@@ -132,12 +133,17 @@ public class LTBlockDataCache {
      * @param pos the block position
      * @return the cached BlockState, or null if not found
      */
-    public static BlockState getBlockStateAt(BlockPos pos) {//TODO: 有可能返回不正常的null？
+    public static BlockState getBlockStateAt(BlockPos pos) {
         if (pos == null) {
             LOGGER.error("LTBlockData getBlockStateAt called with null pos");
             return null;
         }
-        LTBlockData data = CACHE.get(pos);
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache == null) {
+            LOGGER.warn("No cache available for current database");
+            return Blocks.BLACK_WOOL.defaultBlockState();
+        }
+        LTBlockData data = cache.get(pos);
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
             LOGGER.warn("No LTBlockData at chunk {} block {}", cp, pos);
@@ -154,31 +160,55 @@ public class LTBlockDataCache {
             LOGGER.error("LTBlockData getBlockStateAt called with null pos");
             return 0;
         }
-        LTBlockData data = CACHE.get(pos);
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache == null) return 0;
+        LTBlockData data = cache.get(pos);
         if (data == null && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
             loadChunkFromDB(new ChunkPos(pos));
-            data = CACHE.get(pos);
+            data = cache.get(pos);
         }
         return data != null ? data.getColor() : 0;
     }
 
     public static void removeChunkInMemory(ChunkPos chunkPos) {
-        CACHE.removeChunkInMemory(chunkPos, (cp, removed) ->
-                LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache != null) {
+            cache.removeChunkInMemory(chunkPos, (cp, removed) ->
+                    LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
+        }
     }
     public static void removeAt(BlockPos pos) {
-        CACHE.removeAt(pos);
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache != null) cache.removeAt(pos);
         if (currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
             DataBaseCache.removeBlockData(currentDbFile, MOD_ID, pos);
         }
     }
-    public static void clearAll() { CACHE.clearAll(); }
-    public static boolean contains(BlockPos pos) { return CACHE.contains(pos); }
-    public static int getCacheSize() { return CACHE.getChunkCount(); }
+    public static void clearAll() {
+        cacheMap.values().forEach(ChunkCache::clearAll);
+        cacheMap.clear();
+        LOGGER.debug("Cleared all LT memory caches for all dimensions");
+    }
+    public static void clearForDimension(Path dbFile) {
+        ChunkCache<LTBlockData> cache = cacheMap.remove(dbFile);
+        if (cache != null) {
+            cache.clearAll();
+        }
+    }
+    public static boolean contains(BlockPos pos) {
+        ChunkCache<LTBlockData> cache = getCache();
+        return cache != null && cache.contains(pos);
+    }
+    public static int getCacheSize() {
+        ChunkCache<LTBlockData> cache = getCache();
+        return cache != null ? cache.getChunkCount() : 0;
+    }
 
     //debug
     public static String dumpAllEntries() {
-        return CACHE.dumpToString("LTBlockDataCache", data -> {
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache == null) return "No cache available";
+        return cache.dumpToString("LTBlockDataCache", data -> {
             ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(data.getBlockState().getBlock());
             return rl.toString() + " color: #" + String.format("%08X", BlockDataUtil.argbToRgba(data.getColor()));
         });
@@ -187,7 +217,9 @@ public class LTBlockDataCache {
     //database
     private static void loadChunkFromDB(ChunkPos chunkPos) {
         if (currentDbFile == null) return;
-        CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
+        ChunkCache<LTBlockData> cache = getCache();
+        if (cache == null) return;
+        cache.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
             BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, true);
             return new LTBlockData(state, entry.color);
         }, currentDbFile, LOGGER);

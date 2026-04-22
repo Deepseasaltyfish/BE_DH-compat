@@ -51,14 +51,17 @@ public class ChunkEventHandler {
 
     @SubscribeEvent
     public static void onWorldUnload(LevelEvent.Unload event) {
-        IRBlockDataCache.clearAll();
-        LTBlockDataCache.clearAll();
-        LOGGER.info("World unloaded, Cleared all block data Cache");
-        if (event.getLevel().isClientSide() && currentDbFile != null) {
-            DatabaseManager.close(currentDbFile); // 关闭当前维度的连接
-            LOGGER.info("Closed database for client level: {}", currentDbFile);
-            currentDbFile = null;
+        Level level = (Level) event.getLevel();
+        if (level.isClientSide()) {
+            Path dbFile = getDbFileForLevel(level);
+            if (dbFile != null) {
+                DatabaseManager.close(dbFile);
+                IRBlockDataCache.clearForDimension(dbFile);
+                LTBlockDataCache.clearForDimension(dbFile);
+                LOGGER.info("Closed database and cleared cache for dimension: {}", dbFile);
+            }
         }
+        // 注意：不要调用 clearAll()，否则会清空所有维度缓存
     }
 
     @OnlyIn(Dist.CLIENT)

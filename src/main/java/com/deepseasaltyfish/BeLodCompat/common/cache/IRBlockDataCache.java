@@ -26,17 +26,14 @@ public class IRBlockDataCache {
     private static final String MOD_ID = "immersiverailroading";
     private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
-    // 每个数据库文件独立的内存缓存
     private static final ConcurrentHashMap<Path, ChunkCache<IRBlockData>> cacheMap = new ConcurrentHashMap<>();
-
-    // 获取当前数据库对应的缓存实例
-    private static ChunkCache<IRBlockData> getCache() {
-        if (currentDbFile == null) return null;
-        return cacheMap.computeIfAbsent(currentDbFile, p -> new ChunkCache<>(REMOVAL_DELAY_MS));
-    }
     private static Path currentDbFile = null;
     public static void setCurrentDbFile(Path dbFile) {
         currentDbFile = dbFile;
+    }
+    private static ChunkCache<IRBlockData> getCache() {
+        if (currentDbFile == null) return null;
+        return cacheMap.computeIfAbsent(currentDbFile, p -> new ChunkCache<>(REMOVAL_DELAY_MS));
     }
     public static class IRBlockData {
         private final BlockState blockState;
@@ -195,6 +192,12 @@ public class IRBlockDataCache {
         cacheMap.values().forEach(ChunkCache::clearAll);
         cacheMap.clear();
         LOGGER.debug("Cleared all IR memory caches for all dimensions");
+    }
+    public static void clearForDimension(Path dbFile) {
+        ChunkCache<IRBlockData> cache = cacheMap.remove(dbFile);
+        if (cache != null) {
+            cache.clearAll();
+        }
     }
     public static boolean contains(BlockPos pos) {
         ChunkCache<IRBlockData> cache = getCache();
