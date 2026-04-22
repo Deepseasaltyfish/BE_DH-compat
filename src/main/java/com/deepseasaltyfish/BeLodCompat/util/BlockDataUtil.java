@@ -88,7 +88,6 @@ public class BlockDataUtil {
             return Blocks.AIR.defaultBlockState();
         }
 
-        // Special handling for LittleTiles missing tile
         if (handleMissingTile && "littletiles:missing".equals(input)) {
             logger.debug("Found \"littletiles:missing\" value at {}, converted to stone", pos);
             return Blocks.STONE.defaultBlockState();
@@ -102,10 +101,11 @@ public class BlockDataUtil {
 
         try {
             ResourceLocation blockId = ResourceLocation.parse(blockName);
-            Block block = BuiltInRegistries.BLOCK.get(blockId);
-            if (block == Blocks.AIR) {
+            if (!BuiltInRegistries.BLOCK.containsKey(blockId)) {
                 logger.warn("Unknown block ID '{}' at {}, using air", blockName, pos);
+                return Blocks.AIR.defaultBlockState();
             }
+            Block block = BuiltInRegistries.BLOCK.get(blockId);
             return block.defaultBlockState();
         } catch (Exception e) {
             logger.error("Failed to parse block ID '{}' from string {} at {}", blockName, input, pos, e);

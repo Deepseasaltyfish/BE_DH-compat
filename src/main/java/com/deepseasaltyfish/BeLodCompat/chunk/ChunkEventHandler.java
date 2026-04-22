@@ -108,6 +108,7 @@ public class ChunkEventHandler {
             }
         }
         DatabaseManager.open(dbFile);
+        DataBaseCache.reset();
         DataBaseCache.initTable();
         if (level.isClientSide()) checkDhCompressionMode();
     }
@@ -131,11 +132,12 @@ public class ChunkEventHandler {
                 return;
             }
             DatabaseManager.open(dbFile);
+            DataBaseCache.reset();
             DataBaseCache.initTable();
             LOGGER.info("Database opened after login");
+            if (pendingLevel.isClientSide()) checkDhCompressionMode();
             pendingLevel = null;
             pendingDimName = null;
-            if (pendingLevel != null && pendingLevel.isClientSide()) checkDhCompressionMode();
         }
     }
 }

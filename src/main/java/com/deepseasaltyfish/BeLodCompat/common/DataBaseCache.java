@@ -43,6 +43,13 @@ public class DataBaseCache {
         return modId + "_block_data";
     }
 
+    public static void reset() {
+        createdTables.clear();
+        stateIdCache.clear();
+        currentDbPathForCache = null;
+        LOGGER.debug("DataBaseCache reset");
+    }
+
     /**
      * Ensures that the block_data table for the given mod exists.
      * If the table does not exist, it is created.
@@ -54,6 +61,16 @@ public class DataBaseCache {
         if (createdTables.contains(modId)) return;
 
         String tableName = getTableName(modId);
+        // 先检查表是否已存在
+        String checkSQL = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
+        boolean[] exists = {false};
+        DatabaseManager.executeQuery(checkSQL, rs -> { try { if (rs.next()) exists[0] = true; } catch (SQLException e) {} }, tableName);
+        if (exists[0]) {
+            createdTables.add(modId);
+            return;
+        }
+
+        // 创建表（完整的 SQL）
         String sql = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
                 COL_X + " INT NOT NULL, " +
                 COL_Y + " INT NOT NULL, " +
@@ -66,11 +83,19 @@ public class DataBaseCache {
                 "PRIMARY KEY (" + COL_X + ", " + COL_Y + ", " + COL_Z + "))";
         DatabaseManager.executeUpdate(sql);
 
+        // 创建索引
         String idxChunk = "CREATE INDEX IF NOT EXISTS idx_" + tableName + "_chunk ON " + tableName + " (" + COL_CHUNK_X + ", " + COL_CHUNK_Z + ")";
         DatabaseManager.executeUpdate(idxChunk);
 
-        createdTables.add(modId);
-        LOGGER.debug("Table {} ensured for mod {}", tableName, modId);
+        // 再次验证
+        exists[0] = false;
+        DatabaseManager.executeQuery(checkSQL, rs -> { try { if (rs.next()) exists[0] = true; } catch (SQLException e) {} }, tableName);
+        if (exists[0]) {
+            createdTables.add(modId);
+            LOGGER.debug("Table {} created", tableName);
+        } else {
+            LOGGER.error("Failed to create table {}", tableName);
+        }
     }
 
     /**
@@ -100,6 +125,7 @@ public class DataBaseCache {
     private static int getOrCreateStateId(String blockStateStr) {
         if (blockStateStr == null) return 0;
         ensureCacheForCurrentDb();
+
         Integer cached = stateIdCache.get(blockStateStr);
         if (cached != null) return cached;
 
@@ -169,6 +195,7 @@ public class DataBaseCache {
     public static void loadChunk(ChunkPos chunkPos, String modId, Map<BlockPos, ? super BlockDataEntry> targetMap) {
         if (!DatabaseManager.isReady()) return;
         ensureTableExists(modId);
+
         String tableName = getTableName(modId);
         String sql = "SELECT d." + COL_X + ", d." + COL_Y + ", d." + COL_Z + ", s.state, d." + COL_COLOR + ", d." + COL_VERSION +
                 " FROM " + tableName + " d JOIN " + TABLE_DICT + " s ON d." + COL_STATE_ID + " = s.id " +
@@ -203,6 +230,7 @@ public class DataBaseCache {
     public static Integer getColor(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return null;
         ensureTableExists(modId);
+
         String tableName = getTableName(modId);
         String sql = "SELECT " + COL_COLOR + " FROM " + tableName + " WHERE " +
                 COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
@@ -224,6 +252,7 @@ public class DataBaseCache {
     public static void removeBlockData(String modId, BlockPos pos) {
         if (!DatabaseManager.isReady()) return;
         ensureTableExists(modId);
+
         String tableName = getTableName(modId);
         String sql = "DELETE FROM " + tableName + " WHERE " + COL_X + " = ? AND " + COL_Y + " = ? AND " + COL_Z + " = ?";
         DatabaseManager.executeUpdate(sql, pos.getX(), pos.getY(), pos.getZ());
@@ -239,6 +268,7 @@ public class DataBaseCache {
     public static void removeChunk(String modId, ChunkPos chunkPos) {
         if (!DatabaseManager.isReady()) return;
         ensureTableExists(modId);
+
         String tableName = getTableName(modId);
         String sql = "DELETE FROM " + tableName + " WHERE " + COL_CHUNK_X + " = ? AND " + COL_CHUNK_Z + " = ?";
         DatabaseManager.executeUpdate(sql, chunkPos.x, chunkPos.z);
