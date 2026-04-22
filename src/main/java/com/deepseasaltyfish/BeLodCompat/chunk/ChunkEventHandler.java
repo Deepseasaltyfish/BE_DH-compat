@@ -25,6 +25,7 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Mod.EventBusSubscriber(modid = BeLodCompat.MODID)
 public class ChunkEventHandler {
@@ -46,22 +47,26 @@ public class ChunkEventHandler {
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         IRBlockDataCache.clearAll();
         LTBlockDataCache.clearAll();
-        LOGGER.info("Disconnected, cleared all block data Cache");
+        // 关闭所有未关闭的连接
+        levelDbMap.values().forEach(dbFile -> DatabaseManager.close(dbFile));
+        levelDbMap.clear();
+        LOGGER.info("Disconnected, cleared all block data Cache and closed all DB connections");
     }
 
     @SubscribeEvent
     public static void onWorldUnload(LevelEvent.Unload event) {
         Level level = (Level) event.getLevel();
         if (level.isClientSide()) {
-            Path dbFile = getDbFileForLevel(level);
+            Path dbFile = levelDbMap.remove(level);   // 使用存储的路径
             if (dbFile != null) {
                 DatabaseManager.close(dbFile);
                 IRBlockDataCache.clearForDimension(dbFile);
                 LTBlockDataCache.clearForDimension(dbFile);
                 LOGGER.info("Closed database and cleared cache for dimension: {}", dbFile);
+            } else {
+                LOGGER.warn("No stored dbFile for level: {}", level);
             }
         }
-        // 注意：不要调用 clearAll()，否则会清空所有维度缓存
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -81,6 +86,8 @@ public class ChunkEventHandler {
     private static Level pendingLevel = null;
     private static String pendingDimName = null;
     private static Path currentDbFile = null;
+    // 添加在成员变量区域
+    private static final ConcurrentHashMap<Level, Path> levelDbMap = new ConcurrentHashMap<>();
 
     @SubscribeEvent
     public static void onLevelLoad(LevelEvent.Load event) {
@@ -99,7 +106,7 @@ public class ChunkEventHandler {
         Path dbFile = getDbFileForLevel(level);
         if (dbFile == null) return;
 
-        openDatabase(dbFile);
+        openDatabase(level, dbFile);   // 传入 level
         if (level.isClientSide()) checkDhCompressionMode();
     }
 
@@ -113,7 +120,7 @@ public class ChunkEventHandler {
         if (pendingLevel != null && pendingDimName != null) {
             Path dbFile = getDbFileForLevel(pendingLevel);
             if (dbFile != null) {
-                openDatabase(dbFile);
+                openDatabase(pendingLevel, dbFile);   // 传入 pendingLevel
                 LOGGER.info("Database opened after login");
                 if (pendingLevel.isClientSide()) checkDhCompressionMode();
             }
@@ -140,14 +147,17 @@ public class ChunkEventHandler {
                 return null;
             }
         }
+        LOGGER.info("getDbFileForLevel: level={}, worldRoot={}, dimName={}, result={}", level, worldRoot, dimName, dbFile);
         return dbFile;
     }
 
     // 打开数据库并初始化相关缓存
-    private static void openDatabase(Path dbFile) {
+    private static void openDatabase(Level level, Path dbFile) {
+        LOGGER.info("openDatabase called with dbFile: {}", dbFile);
         DatabaseManager.open(dbFile);
         DataBaseCache.initTable(dbFile);
         currentDbFile = dbFile;
+        levelDbMap.put(level, dbFile);          // 存储映射
         LTBlockDataCache.setCurrentDbFile(dbFile);
         IRBlockDataCache.setCurrentDbFile(dbFile);
     }
