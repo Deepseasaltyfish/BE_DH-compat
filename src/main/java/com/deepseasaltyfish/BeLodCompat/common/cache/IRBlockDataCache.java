@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.units.qual.C;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -26,6 +27,10 @@ public class IRBlockDataCache {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
     private static final ChunkCache<IRBlockDataCache.IRBlockData> CACHE = new ChunkCache<>(REMOVAL_DELAY_MS);
+    private static Path currentDbFile = null;
+    public static void setCurrentDbFile(Path dbFile) {
+        currentDbFile = dbFile;
+    }
     public static class IRBlockData {
         private final BlockState blockState;
         private final BlockPos parentPos;
@@ -70,7 +75,7 @@ public class IRBlockDataCache {
             String parentId = "";
             if(!isParent){
                 IRBlockData parentData = CACHE.get(parentPos);
-                if(parentData == null && DatabaseManager.isReady()){
+                if(parentData == null && currentDbFile != null && DatabaseManager.isReady(currentDbFile)){
                     loadChunkFromDB(new ChunkPos(parentPos));
                     parentData = CACHE.get(parentPos);
                 }
@@ -105,11 +110,11 @@ public class IRBlockDataCache {
                 old.getBlockState().equals(fresh.getBlockState()) && java.util.Objects.equals(old.getParentPos(), fresh.getParentPos())
         );
 
-        if (changed && DatabaseManager.isReady()) {
+        if (changed && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
             if(isParent) {
-                DataBaseCache.putBlockData(MOD_ID, pos, blockStr, 0, DataBaseCache.CURRENT_VERSION);
+                DataBaseCache.putBlockData(currentDbFile, MOD_ID, pos, blockStr, 0, DataBaseCache.CURRENT_VERSION);
             }else {
-                DataBaseCache.removeBlockData(MOD_ID, pos);
+                DataBaseCache.removeBlockData(currentDbFile, MOD_ID, pos);
             }
         }
         return true;
@@ -173,9 +178,10 @@ public class IRBlockDataCache {
 
     //database
     private static void loadChunkFromDB(ChunkPos chunkPos) {
+        if (currentDbFile == null) return;
         CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
             BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, false);
             return new IRBlockData(state, null);
-        }, LOGGER);
+        }, currentDbFile, LOGGER);  // 传递 dbFile
     }
 }

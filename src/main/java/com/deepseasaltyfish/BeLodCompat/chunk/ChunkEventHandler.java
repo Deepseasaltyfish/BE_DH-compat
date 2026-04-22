@@ -54,9 +54,10 @@ public class ChunkEventHandler {
         IRBlockDataCache.clearAll();
         LTBlockDataCache.clearAll();
         LOGGER.info("World unloaded, Cleared all block data Cache");
-        if (event.getLevel().isClientSide()) {
-            DatabaseManager.close();
-            LOGGER.info("Closed database for client level");
+        if (event.getLevel().isClientSide() && currentDbFile != null) {
+            DatabaseManager.close(currentDbFile); // 关闭当前维度的连接
+            LOGGER.info("Closed database for client level: {}", currentDbFile);
+            currentDbFile = null;
         }
     }
 
@@ -76,6 +77,7 @@ public class ChunkEventHandler {
     // 替换 pendingDbFile 为 pendingLevel 和 pendingDimName
     private static Level pendingLevel = null;
     private static String pendingDimName = null;
+    private static Path currentDbFile = null;
 
     @SubscribeEvent
     public static void onLevelLoad(LevelEvent.Load event) {
@@ -91,6 +93,34 @@ public class ChunkEventHandler {
         }
 
         // 单机或服务端立即打开
+        Path dbFile = getDbFileForLevel(level);
+        if (dbFile == null) return;
+
+        openDatabase(dbFile);
+        if (level.isClientSide()) checkDhCompressionMode();
+    }
+
+    @SubscribeEvent
+    @OnlyIn(Dist.CLIENT)
+    public static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        String remoteAddr = event.getConnection().getRemoteAddress().toString();
+        String ip = remoteAddr.substring(1).replace('/', '_').replace(':', '_');
+        WorldPathUtil.setCachedServerIp(ip);
+
+        if (pendingLevel != null && pendingDimName != null) {
+            Path dbFile = getDbFileForLevel(pendingLevel);
+            if (dbFile != null) {
+                openDatabase(dbFile);
+                LOGGER.info("Database opened after login");
+                if (pendingLevel.isClientSide()) checkDhCompressionMode();
+            }
+            pendingLevel = null;
+            pendingDimName = null;
+        }
+    }
+
+    // 辅助方法：根据 Level 生成数据库文件路径
+    private static Path getDbFileForLevel(Level level) {
         Path worldRoot = WorldPathUtil.getWorldRootPath(level);
         String dimName = level.dimension().location().getPath().replace('/', '_');
         Path dbFile;
@@ -104,40 +134,18 @@ public class ChunkEventHandler {
                 java.nio.file.Files.createDirectories(dbRoot);
             } catch (IOException e) {
                 LOGGER.error("Failed to create database directory", e);
-                return;
+                return null;
             }
         }
-        DatabaseManager.open(dbFile);
-        DataBaseCache.reset();
-        DataBaseCache.initTable();
-        if (level.isClientSide()) checkDhCompressionMode();
+        return dbFile;
     }
 
-    @SubscribeEvent
-    @OnlyIn(Dist.CLIENT)
-    public static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        String remoteAddr = event.getConnection().getRemoteAddress().toString();
-        String ip = remoteAddr.substring(1).replace('/', '_').replace(':', '_');
-        WorldPathUtil.setCachedServerIp(ip);
-
-        if (pendingLevel != null && pendingDimName != null) {
-            // 重新获取正确的路径（此时 cachedServerIp 已设置）
-            Path worldRoot = WorldPathUtil.getWorldRootPath(pendingLevel);
-            // 对于多人客户端，worldRoot 已经是 belodcompat_servers/<ip> 目录
-            Path dbFile = worldRoot.resolve(pendingDimName + ".db");
-            try {
-                java.nio.file.Files.createDirectories(worldRoot);
-            } catch (IOException e) {
-                LOGGER.error("Failed to create database directory", e);
-                return;
-            }
-            DatabaseManager.open(dbFile);
-            DataBaseCache.reset();
-            DataBaseCache.initTable();
-            LOGGER.info("Database opened after login");
-            if (pendingLevel.isClientSide()) checkDhCompressionMode();
-            pendingLevel = null;
-            pendingDimName = null;
-        }
+    // 打开数据库并初始化相关缓存
+    private static void openDatabase(Path dbFile) {
+        DatabaseManager.open(dbFile);
+        DataBaseCache.initTable(dbFile);
+        currentDbFile = dbFile;
+        LTBlockDataCache.setCurrentDbFile(dbFile);
+        IRBlockDataCache.setCurrentDbFile(dbFile);
     }
 }

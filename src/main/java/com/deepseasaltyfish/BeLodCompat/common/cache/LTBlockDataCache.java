@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -25,9 +26,13 @@ import java.util.concurrent.*;
 public class LTBlockDataCache {
     private static final String MOD_ID = "littletiles";
     //TODO: we should store these cache in region instead of generate them frequently
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(LTBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
     private static final ChunkCache<LTBlockDataCache.LTBlockData> CACHE = new ChunkCache<>(REMOVAL_DELAY_MS);
+    private static Path currentDbFile = null;
+    public static void setCurrentDbFile(Path dbFile) {
+        currentDbFile = dbFile;
+    }
 
     /**
      * RGBA format
@@ -107,11 +112,11 @@ public class LTBlockDataCache {
         boolean changed = CACHE.put(pos, newData, (old, fresh) ->
                 old.getBlockState().equals(fresh.getBlockState()) && old.getColor() == fresh.getColor());
 
-        if (changed && DatabaseManager.isReady()) {
+        if (changed && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
             if (color != 0xFFFFFFFF) {
-                DataBaseCache.putBlockData(MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
+                DataBaseCache.putBlockData(currentDbFile, MOD_ID, pos, blockName, color, DataBaseCache.CURRENT_VERSION);
             } else {
-                DataBaseCache.removeBlockData(MOD_ID, pos);
+                DataBaseCache.removeBlockData(currentDbFile, MOD_ID, pos);
             }
         }
         return true;
@@ -150,7 +155,7 @@ public class LTBlockDataCache {
             return 0;
         }
         LTBlockData data = CACHE.get(pos);
-        if (data == null && DatabaseManager.isReady()) {
+        if (data == null && currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
             loadChunkFromDB(new ChunkPos(pos));
             data = CACHE.get(pos);
         }
@@ -163,8 +168,8 @@ public class LTBlockDataCache {
     }
     public static void removeAt(BlockPos pos) {
         CACHE.removeAt(pos);
-        if (DatabaseManager.isReady()) {
-            DataBaseCache.removeBlockData(MOD_ID, pos);
+        if (currentDbFile != null && DatabaseManager.isReady(currentDbFile)) {
+            DataBaseCache.removeBlockData(currentDbFile, MOD_ID, pos);
         }
     }
     public static void clearAll() { CACHE.clearAll(); }
@@ -181,9 +186,10 @@ public class LTBlockDataCache {
 
     //database
     private static void loadChunkFromDB(ChunkPos chunkPos) {
+        if (currentDbFile == null) return;
         CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
             BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, true);
             return new LTBlockData(state, entry.color);
-        }, LOGGER);
+        }, currentDbFile, LOGGER);
     }
 }
