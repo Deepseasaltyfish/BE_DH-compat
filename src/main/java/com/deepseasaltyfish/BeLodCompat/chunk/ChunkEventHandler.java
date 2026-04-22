@@ -13,6 +13,7 @@ import com.seibel.distanthorizons.core.config.Config;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.api.distmarker.Dist;
@@ -57,14 +58,14 @@ public class ChunkEventHandler {
     public static void onWorldUnload(LevelEvent.Unload event) {
         Level level = (Level) event.getLevel();
         if (level.isClientSide()) {
-            Path dbFile = levelDbMap.remove(level);   // 使用存储的路径
+            Path dbFile = levelDbMap.remove(level.dimension().location().toString());
             if (dbFile != null) {
                 DatabaseManager.close(dbFile);
                 IRBlockDataCache.clearForDimension(dbFile);
                 LTBlockDataCache.clearForDimension(dbFile);
                 LOGGER.info("Closed database and cleared cache for dimension: {}", dbFile);
             } else {
-                LOGGER.warn("No stored dbFile for level: {}", level);
+                LOGGER.info("No stored dbFile for level: {}", level);
             }
         }
     }
@@ -87,7 +88,7 @@ public class ChunkEventHandler {
     private static String pendingDimName = null;
     private static Path currentDbFile = null;
     // 添加在成员变量区域
-    private static final ConcurrentHashMap<Level, Path> levelDbMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Path> levelDbMap = new ConcurrentHashMap<>();
 
     @SubscribeEvent
     public static void onLevelLoad(LevelEvent.Load event) {
@@ -157,7 +158,7 @@ public class ChunkEventHandler {
         DatabaseManager.open(dbFile);
         DataBaseCache.initTable(dbFile);
         currentDbFile = dbFile;
-        levelDbMap.put(level, dbFile);          // 存储映射
+        levelDbMap.put(level.dimension().location().toString(), dbFile);
         LTBlockDataCache.setCurrentDbFile(dbFile);
         IRBlockDataCache.setCurrentDbFile(dbFile);
     }

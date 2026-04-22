@@ -24,6 +24,7 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
     {
         if (DEAD.get()) return;
+        //can get e.value.levelWrapper.getDimensionName();
 
         IDhApiBlockStateWrapper current = e.value.currentBlock;
         String LtBaseId = BlockDataUtil.extractLtBaseId(current.getSerialString());
