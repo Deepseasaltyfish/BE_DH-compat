@@ -1,5 +1,6 @@
 package com.deepseasaltyfish.BeLodCompat.common.cache;
 
+import com.deepseasaltyfish.BeLodCompat.chunk.ChunkEventHandler;
 import com.deepseasaltyfish.BeLodCompat.common.DataBaseCache;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import com.deepseasaltyfish.BeLodCompat.util.BlockDataUtil;
@@ -17,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.units.qual.C;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -25,7 +27,11 @@ public class IRBlockDataCache {
     private static final String MOD_ID = "immersiverailroading";
     private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
-    private static final ChunkCache<IRBlockDataCache.IRBlockData> CACHE = new ChunkCache<>(REMOVAL_DELAY_MS);
+    private static final ConcurrentHashMap<String, ChunkCache<IRBlockData>> cacheMap = new ConcurrentHashMap<>();
+    private static ChunkCache<IRBlockData> getCache(String dimName) {
+        if (dimName == null) return null;
+        return cacheMap.computeIfAbsent(dimName, d -> new ChunkCache<>(REMOVAL_DELAY_MS));
+    }
     public static class IRBlockData {
         private final BlockState blockState;
         private final BlockPos parentPos;
@@ -44,13 +50,19 @@ public class IRBlockDataCache {
      * @param isParent true for block_rail (parent), false for block_rail_gag (child)
      * @return true if successfully cached (or overridden), false if fallback used (put handled by caller)
      */
-    public static boolean extractIRColor(BlockPos pos, CompoundTag tag, boolean isParent) {
+    public static boolean extractIRColor(BlockPos pos, CompoundTag tag, boolean isParent, String dimName) {
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile == null) {
+            LOGGER.warn("IrExtract: No database for dimension: {}", dimName);
+            return false;
+        }
+
         // Check config override first
         if (ModConfigs.overrideIrRailBlock) {
             String overrideId = ModConfigs.getValidatedOverrideId();
             if (overrideId != null && !overrideId.isEmpty()) {
                 LOGGER.debug("IR rail override applied at {}, using {}", pos, overrideId);
-                return put(pos, overrideId, null, isParent);
+                return put(pos, overrideId, null, isParent, dimName);
             }
         }
 
@@ -69,11 +81,14 @@ public class IRBlockDataCache {
 
             String parentId = "";
             if(!isParent){
-                IRBlockData parentData = CACHE.get(parentPos);
-                if(parentData == null && DatabaseManager.isReady()){
-                    loadChunkFromDB(new ChunkPos(parentPos));
-                    parentData = CACHE.get(parentPos);
+                ChunkCache<IRBlockData> cache = getCache(dimName);
+                if (cache == null) return false;
+                IRBlockData parentData = cache.get(parentPos);
+                if (parentData == null && DatabaseManager.isReady(dbFile)) {
+                    loadChunkFromDB(new ChunkPos(parentPos), dimName);
+                    parentData = cache.get(parentPos);
                 }
+
                 if(parentData != null){
                     ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(parentData.getBlockState().getBlock());
                     parentId = rl.toString();
@@ -83,33 +98,39 @@ public class IRBlockDataCache {
                 }
             }
             String id = bedItem != null ? bedItem.getString("id") : parentId;
-            if (id.isEmpty()) { LOGGER.debug("Empty bedItem id at {}, using soul sand (handled by put fallback)", pos); }
+            if(id.isEmpty()) { LOGGER.debug("Empty bedItem id at {}, using soul sand (handled by put fallback)", pos); }
+            if(ModConfigs.replaceIrIfAir && id.equals("minecraft:air")) { id = ModConfigs.getValidatedOverrideId(); }
 
-            return put(pos, id, parentPos, isParent);
+            return put(pos, id, parentPos, isParent, dimName);
         } catch (Exception e) {
             LOGGER.error("Failed to extract IR color at {}", pos, e);
             return false;
         }
     }
 
-    public static boolean put(BlockPos pos, String blockStr, BlockPos parentPos, boolean isParent) {
+    public static boolean put(BlockPos pos, String blockStr, BlockPos parentPos, boolean isParent, String dimName) {
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile == null) {
+            LOGGER.warn("IrPut: No database for dimension: {}", dimName);
+            return false;
+        }
         String blockName = BlockDataUtil.extractBlockName(blockStr);
         if (blockName == null) {
             LOGGER.error("Failed to extract block name from '{}' at {}", blockStr, pos);
             return false;
         }
-
         BlockState newState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, false);
         IRBlockData newData = new IRBlockData(newState, parentPos);
-        boolean changed = CACHE.put(pos, newData, (old, fresh) ->
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        if (cache == null) return false;
+        boolean changed = cache.put(pos, newData, (old, fresh) ->
                 old.getBlockState().equals(fresh.getBlockState()) && java.util.Objects.equals(old.getParentPos(), fresh.getParentPos())
         );
-
-        if (changed && DatabaseManager.isReady()) {
-            if(isParent) {
-                DataBaseCache.putBlockData(MOD_ID, pos, blockStr, 0, DataBaseCache.CURRENT_VERSION);
-            }else {
-                DataBaseCache.removeBlockData(MOD_ID, pos);
+        if (changed && DatabaseManager.isReady(dbFile)) {
+            if (isParent) {
+                DataBaseCache.putBlockData(dbFile, MOD_ID, pos, blockStr, 0, DataBaseCache.CURRENT_VERSION);
+            } else {
+                DataBaseCache.removeBlockData(dbFile, MOD_ID, pos);
             }
         }
         return true;
@@ -125,57 +146,102 @@ public class IRBlockDataCache {
      * @param pos the block position
      * @return the cached BlockState, or null if not found
      */
-    public static BlockState getBlockStateAt(BlockPos pos) {
+    public static BlockState getBlockStateAt(BlockPos pos, String dimName) {
         if (pos == null) {
             LOGGER.error("IRBlockData getBlockStateAt called with null pos");
             return null;
         }
-        IRBlockData data = CACHE.get(pos);
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        if (cache == null) {
+            LOGGER.warn("No cache for dimension: {}", dimName);
+            return null;
+        }
+        IRBlockData data = cache.get(pos);
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
-            LOGGER.warn("No IRBlockData at chunk {} block {}", cp, pos);
-            return Blocks.BLACK_WOOL.defaultBlockState();
+            LOGGER.debug("No IRBlockData at chunk {} block {} for dimension {}", cp, pos, dimName);
+            return null;
         }
 
-        //we do not need this yet
-//        if(data.getParentPos() != null && !data.getParentPos().equals(pos)) {
-//            BlockPos parentPos = data.getParentPos();
-//            IRBlockData parentData = CACHE.get(data.getParentPos());
-//            if (parentData == null && DatabaseManager.isReady()) {
-//                loadChunkFromDB(new ChunkPos(parentPos));
-//                parentData = CACHE.get(parentPos);
-//            }
-//            if (parentData != null) {
-//                return parentData.getBlockState();
-//            } else {
-//                LOGGER.debug("Parent rail at {} not found for child at {}", parentPos, pos);
-//                return data.getBlockState();
-//            }
-//        }
+        if (ModConfigs.getIrDataFromParentDirectly && data.getParentPos() != null && !data.getParentPos().equals(pos)) {
+            BlockPos parentPos = data.getParentPos();
+            ChunkCache<IRBlockData> parentCache = getCache(dimName);
+            if (parentCache == null) {
+                LOGGER.debug("No cache for dimension: {}", dimName);
+                return data.getBlockState();
+            }
+            IRBlockData parentData = parentCache.get(parentPos);
+            if (parentData == null) {
+                Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+                if (dbFile != null && DatabaseManager.isReady(dbFile)) {
+                    loadChunkFromDB(new ChunkPos(parentPos), dimName);
+                    parentData = parentCache.get(parentPos);
+                }
+            }
+            if (parentData != null) {
+                return parentData.getBlockState();
+            } else {
+                LOGGER.debug("Parent rail at {} not found for child at {}", parentPos, pos);
+                return data.getBlockState();
+            }
+        }
         return data.getBlockState();
     }
 
-    public static void removeChunkInMemory(ChunkPos chunkPos) {
-        CACHE.removeChunkInMemory(chunkPos, (cp, removed) ->
-                LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
+    public static void removeChunkInMemory(ChunkPos chunkPos, String dimName) {
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        if (cache != null) {
+            cache.removeChunkInMemory(chunkPos, (cp, removed) ->
+                    LOGGER.debug("Delayed removal of chunk {} with {} entries for dimension {}", cp, removed.size(), dimName));
+        }
     }
-    public static void removeAt(BlockPos pos) { CACHE.removeAt(pos); }
-    public static void clearAll() { CACHE.clearAll(); }
-    public static boolean contains(BlockPos pos) { return CACHE.contains(pos); }
-    public static int getCacheSize() { return CACHE.getChunkCount(); }
+    public static void removeAt(BlockPos pos, String dimName) {
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        if (cache != null) cache.removeAt(pos);
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile != null && DatabaseManager.isReady(dbFile)) {
+            DataBaseCache.removeBlockData(dbFile, MOD_ID, pos);
+        }
+    }
+    public static void clearAll() {
+        cacheMap.values().forEach(ChunkCache::clearAll);
+        cacheMap.clear();
+        LOGGER.debug("Cleared all IR memory caches for all dimensions");
+    }
+    public static void clearForDimension(String dimName) {
+        ChunkCache<IRBlockData> cache = cacheMap.remove(dimName);
+        if (cache != null) {
+            cache.clearAll();
+            LOGGER.debug("Cleared cache for dimension {}", dimName);
+        }
+    }
+    public static boolean contains(BlockPos pos, String dimName) {
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        return cache != null && cache.contains(pos);
+    }
+    public static int getCacheSize(String dimName) {
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        return cache != null ? cache.getChunkCount() : 0;
+    }
 
     //debug
-    public static String dumpAllEntries() {
-        return CACHE.dumpToString("IRBlockDataCache", data ->
+    public static String dumpAllEntries(String dimName) {
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        if (cache == null) return "No cache available for dimension: " + dimName;
+        return cache.dumpToString("IRBlockDataCache", data ->
                 BuiltInRegistries.BLOCK.getKey(data.getBlockState().getBlock()).toString()
         );
     }
 
     //database
-    private static void loadChunkFromDB(ChunkPos chunkPos) {
-        CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
+    private static void loadChunkFromDB(ChunkPos chunkPos, String dimName) {
+        Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
+        if (dbFile == null) return;
+        ChunkCache<IRBlockData> cache = getCache(dimName);
+        if (cache == null) return;
+        cache.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
             BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, false);
             return new IRBlockData(state, null);
-        }, LOGGER);
+        }, dbFile, LOGGER);
     }
 }

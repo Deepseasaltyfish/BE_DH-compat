@@ -35,21 +35,20 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
                 e.value.blockPosY,
                 (e.value.chunkZ << 4) + e.value.relativeBlockPosZ
         );
-        BlockState state = null;
 
-        if (LtBaseId.equals("littletiles:tiles")) {//TODO: we still get null sometimes, though fine most of the time
-            state = LTBlockDataCache.getBlockStateAt(pos);
+        BlockState state;
+        String dimName = e.value.levelWrapper.getDimensionName();
+
+        if (LtBaseId.equals("littletiles:tiles")) {
+            state = LTBlockDataCache.getBlockStateAt(pos, dimName);
         } else if (IrBaseId.equals("immersiverailroading:block_rail") || IrBaseId.equals("immersiverailroading:block_rail_gag")) {
-            state = IRBlockDataCache.getBlockStateAt(pos);
-        }else {
-            //not sure but these may make null value of getBlockStateAt happens much more
-//            LTBlockDataCache.removeAt(pos);
-//            IRBlockDataCache.removeAt(pos);
+            state = IRBlockDataCache.getBlockStateAt(pos, dimName);
+        } else {
             return;
         }
 
         if (state == null) {
-            state = Blocks.AIR.defaultBlockState();
+            state = Blocks.BLACK_WOOL.defaultBlockState();//TODO: make this a debug config option
             LOGGER.debug("Found null state at {} in replacer", pos);
         }
         id = ForgeRegistries.BLOCKS.getKey(state.getBlock());

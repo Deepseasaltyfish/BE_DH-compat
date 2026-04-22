@@ -13,25 +13,24 @@ import net.minecraft.world.level.block.state.BlockState;
 public class BlockDataUtil {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockDataUtil.class);
 
-    public static boolean tryExtractBlockData(CompoundTag tag, BlockPos pos) {
+    public static boolean tryExtractBlockData(CompoundTag tag, BlockPos pos, String dimName) {
         if (tag != null) {
             String id = tag.getString("id");
-            return tryExtractBlockData(id, tag, pos);
+            return tryExtractBlockData(id, tag, pos, dimName);
         }
         LOGGER.debug("null tag at {}", pos);
         return false;
     }
 
-
-    public static boolean tryExtractBlockData(String id, CompoundTag tag, BlockPos pos) {
+    public static boolean tryExtractBlockData(String id, CompoundTag tag, BlockPos pos, String dimName) {
         if (id == null || tag == null) return false;
         if ("littletiles:tiles".equals(id)) {
             CompoundTag contentTag = tag.getCompound("content");
-            return LTBlockDataCache.extractLTColor(pos, contentTag);
+            return LTBlockDataCache.extractLTColor(pos, contentTag, dimName);
         } else if ("immersiverailroading:block_rail".equals(id) || "immersiverailroading:block_rail_gag".equals(id)) {
             CompoundTag instanceDataTag = tag.getCompound("instanceData");
             boolean isParent = "immersiverailroading:block_rail".equals(id);
-            return IRBlockDataCache.extractIRColor(pos, instanceDataTag, isParent);
+            return IRBlockDataCache.extractIRColor(pos, instanceDataTag, isParent, dimName);
         }
         return false;
     }
@@ -88,7 +87,6 @@ public class BlockDataUtil {
             return Blocks.AIR.defaultBlockState();
         }
 
-        // Special handling for LittleTiles missing tile
         if (handleMissingTile && "littletiles:missing".equals(input)) {
             logger.debug("Found \"littletiles:missing\" value at {}, converted to stone", pos);
             return Blocks.STONE.defaultBlockState();
@@ -102,10 +100,11 @@ public class BlockDataUtil {
 
         try {
             ResourceLocation blockId = ResourceLocation.parse(blockName);
-            Block block = BuiltInRegistries.BLOCK.get(blockId);
-            if (block == Blocks.AIR) {
+            if (!BuiltInRegistries.BLOCK.containsKey(blockId)) {
                 logger.warn("Unknown block ID '{}' at {}, using air", blockName, pos);
+                return Blocks.AIR.defaultBlockState();
             }
+            Block block = BuiltInRegistries.BLOCK.get(blockId);
             return block.defaultBlockState();
         } catch (Exception e) {
             logger.error("Failed to parse block ID '{}' from string {} at {}", blockName, input, pos, e);

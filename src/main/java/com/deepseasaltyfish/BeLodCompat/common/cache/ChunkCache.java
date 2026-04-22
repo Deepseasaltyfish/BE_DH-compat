@@ -6,6 +6,7 @@ import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -204,12 +205,12 @@ public class ChunkCache<V> {
     public void loadChunkFromDB(
             ChunkPos chunkPos, String modId,
             java.util.function.Function<DataBaseCache.BlockDataEntry, V> mapper,
-            DebugLogger logger
+            Path dbFile, DebugLogger logger
     ) {
-        if (!DatabaseManager.isReady()) return;
+        if (!DatabaseManager.isReady(dbFile)) return;
         getRawCache().computeIfAbsent(chunkPos, cp -> {
             Map<BlockPos, DataBaseCache.BlockDataEntry> tempMap = new HashMap<>();
-            DataBaseCache.loadChunk(cp, modId, tempMap);
+            DataBaseCache.loadChunk(dbFile, cp, modId, tempMap);
             ConcurrentHashMap<BlockPos, V> inner = new ConcurrentHashMap<>();
             for (Map.Entry<BlockPos, DataBaseCache.BlockDataEntry> entry : tempMap.entrySet()) {
                 BlockPos pos = entry.getKey();
