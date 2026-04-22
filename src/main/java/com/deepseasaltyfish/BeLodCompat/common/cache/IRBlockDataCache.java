@@ -53,7 +53,7 @@ public class IRBlockDataCache {
     public static boolean extractIRColor(BlockPos pos, CompoundTag tag, boolean isParent, String dimName) {
         Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
         if (dbFile == null) {
-            LOGGER.error("No database for dimension: {}", dimName);
+            LOGGER.error("IrExtract: No database for dimension: {}", dimName);
             return false;
         }
 
@@ -110,7 +110,7 @@ public class IRBlockDataCache {
     public static boolean put(BlockPos pos, String blockStr, BlockPos parentPos, boolean isParent, String dimName) {
         Path dbFile = ChunkEventHandler.getDbFileForDimension(dimName);
         if (dbFile == null) {
-            LOGGER.error("No database for dimension: {}", dimName);
+            LOGGER.warn("IrPut: No database for dimension: {}", dimName);
             return false;
         }
         String blockName = BlockDataUtil.extractBlockName(blockStr);
