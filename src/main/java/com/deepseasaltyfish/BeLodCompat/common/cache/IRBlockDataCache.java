@@ -26,7 +26,14 @@ public class IRBlockDataCache {
     private static final String MOD_ID = "immersiverailroading";
     private static final DebugLogger LOGGER = DebugLogger.getLogger(IRBlockDataCache.class);
     private static final long REMOVAL_DELAY_MS = 30_000;
-    private static final ChunkCache<IRBlockDataCache.IRBlockData> CACHE = new ChunkCache<>(REMOVAL_DELAY_MS);
+    // 每个数据库文件独立的内存缓存
+    private static final ConcurrentHashMap<Path, ChunkCache<IRBlockData>> cacheMap = new ConcurrentHashMap<>();
+
+    // 获取当前数据库对应的缓存实例
+    private static ChunkCache<IRBlockData> getCache() {
+        if (currentDbFile == null) return null;
+        return cacheMap.computeIfAbsent(currentDbFile, p -> new ChunkCache<>(REMOVAL_DELAY_MS));
+    }
     private static Path currentDbFile = null;
     public static void setCurrentDbFile(Path dbFile) {
         currentDbFile = dbFile;
@@ -74,11 +81,15 @@ public class IRBlockDataCache {
 
             String parentId = "";
             if(!isParent){
-                IRBlockData parentData = CACHE.get(parentPos);
+                ChunkCache<IRBlockData> cache = getCache();
+                if (cache == null) return false;
+                IRBlockData parentData = cache.get(parentPos);
+
                 if(parentData == null && currentDbFile != null && DatabaseManager.isReady(currentDbFile)){
                     loadChunkFromDB(new ChunkPos(parentPos));
-                    parentData = CACHE.get(parentPos);
+                    parentData = cache.get(parentPos);
                 }
+
                 if(parentData != null){
                     ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(parentData.getBlockState().getBlock());
                     parentId = rl.toString();
@@ -106,7 +117,9 @@ public class IRBlockDataCache {
 
         BlockState newState = BlockDataUtil.toDefaultBlockState(blockStr, pos, LOGGER, false);
         IRBlockData newData = new IRBlockData(newState, parentPos);
-        boolean changed = CACHE.put(pos, newData, (old, fresh) ->
+        ChunkCache<IRBlockData> cache = getCache();
+        if (cache == null) return false;
+        boolean changed = cache.put(pos, newData, (old, fresh) ->
                 old.getBlockState().equals(fresh.getBlockState()) && java.util.Objects.equals(old.getParentPos(), fresh.getParentPos())
         );
 
@@ -135,7 +148,14 @@ public class IRBlockDataCache {
             LOGGER.error("IRBlockData getBlockStateAt called with null pos");
             return null;
         }
-        IRBlockData data = CACHE.get(pos);
+
+        ChunkCache<IRBlockData> cache = getCache();
+        if (cache == null) {
+            LOGGER.warn("No cache available for current database");
+            return Blocks.BLACK_WOOL.defaultBlockState();
+        }
+        IRBlockData data = cache.get(pos);
+
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
             LOGGER.warn("No IRBlockData at chunk {} block {}", cp, pos);
@@ -161,17 +181,35 @@ public class IRBlockDataCache {
     }
 
     public static void removeChunkInMemory(ChunkPos chunkPos) {
-        CACHE.removeChunkInMemory(chunkPos, (cp, removed) ->
-                LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
+        ChunkCache<IRBlockData> cache = getCache();
+        if (cache != null) {
+            cache.removeChunkInMemory(chunkPos, (cp, removed) ->
+                    LOGGER.debug("Delayed removal of chunk {} with {} entries", cp, removed.size()));
+        }
     }
-    public static void removeAt(BlockPos pos) { CACHE.removeAt(pos); }
-    public static void clearAll() { CACHE.clearAll(); }
-    public static boolean contains(BlockPos pos) { return CACHE.contains(pos); }
-    public static int getCacheSize() { return CACHE.getChunkCount(); }
+    public static void removeAt(BlockPos pos) {
+        ChunkCache<IRBlockData> cache = getCache();
+        if (cache != null) cache.removeAt(pos);
+    }
+    public static void clearAll() {
+        cacheMap.values().forEach(ChunkCache::clearAll);
+        cacheMap.clear();
+        LOGGER.debug("Cleared all IR memory caches for all dimensions");
+    }
+    public static boolean contains(BlockPos pos) {
+        ChunkCache<IRBlockData> cache = getCache();
+        return cache != null && cache.contains(pos);
+    }
+    public static int getCacheSize() {
+        ChunkCache<IRBlockData> cache = getCache();
+        return cache != null ? cache.getChunkCount() : 0;
+    }
 
     //debug
     public static String dumpAllEntries() {
-        return CACHE.dumpToString("IRBlockDataCache", data ->
+        ChunkCache<IRBlockData> cache = getCache();
+        if (cache == null) return "No cache available";
+        return cache.dumpToString("IRBlockDataCache", data ->
                 BuiltInRegistries.BLOCK.getKey(data.getBlockState().getBlock()).toString()
         );
     }
@@ -179,9 +217,11 @@ public class IRBlockDataCache {
     //database
     private static void loadChunkFromDB(ChunkPos chunkPos) {
         if (currentDbFile == null) return;
-        CACHE.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
+        ChunkCache<IRBlockData> cache = getCache();
+        if (cache == null) return;
+        cache.loadChunkFromDB(chunkPos, MOD_ID, entry -> {
             BlockState state = BlockDataUtil.toDefaultBlockState(entry.blockStateStr, null, LOGGER, false);
             return new IRBlockData(state, null);
-        }, currentDbFile, LOGGER);  // 传递 dbFile
+        }, currentDbFile, LOGGER);
     }
 }
