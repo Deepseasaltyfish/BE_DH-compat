@@ -144,13 +144,13 @@ public class LTBlockDataCache {
         ChunkCache<LTBlockData> cache = getCache(dimName);
         if (cache == null) {
             LOGGER.warn("No cache for dimension: {}", dimName);
-            return Blocks.BLACK_WOOL.defaultBlockState();
+            return null;
         }
         LTBlockData data = cache.get(pos);
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
             LOGGER.debug("No LTBlockData at chunk {} block {} for dimension {}", cp, pos, dimName);
-            return Blocks.BLACK_WOOL.defaultBlockState();
+            return null;
         }
         return data.getBlockState();
     }

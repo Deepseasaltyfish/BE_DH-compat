@@ -35,9 +35,9 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
                 e.value.blockPosY,
                 (e.value.chunkZ << 4) + e.value.relativeBlockPosZ
         );
-        BlockState state = null;
 
-        String dimName = e.value.levelWrapper.getDimensionName(); // 获取维度名称
+        BlockState state;
+        String dimName = e.value.levelWrapper.getDimensionName();
 
         if (LtBaseId.equals("littletiles:tiles")) {
             state = LTBlockDataCache.getBlockStateAt(pos, dimName);
@@ -48,7 +48,7 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
         }
 
         if (state == null) {
-            state = Blocks.AIR.defaultBlockState();
+            state = Blocks.BLACK_WOOL.defaultBlockState();//TODO: make this a debug config option
             LOGGER.debug("Found null state at {} in replacer", pos);
         }
         id = ForgeRegistries.BLOCKS.getKey(state.getBlock());

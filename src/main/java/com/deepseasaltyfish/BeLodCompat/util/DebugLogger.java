@@ -4,7 +4,7 @@ import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DebugLogger {//TODO: we have some big problem for logging... sometimes it doesnt output, need to solve later
+public class DebugLogger {//TODO: we have some problems for debug functions... sometimes they do not output
     private final Logger logger;
 
     private DebugLogger(Class<?> clazz) {

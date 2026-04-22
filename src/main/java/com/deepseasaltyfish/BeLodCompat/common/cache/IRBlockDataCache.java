@@ -154,13 +154,13 @@ public class IRBlockDataCache {
         ChunkCache<IRBlockData> cache = getCache(dimName);
         if (cache == null) {
             LOGGER.warn("No cache for dimension: {}", dimName);
-            return Blocks.BLACK_WOOL.defaultBlockState();
+            return null;
         }
         IRBlockData data = cache.get(pos);
         if (data == null) {
             ChunkPos cp = new ChunkPos(pos);
             LOGGER.debug("No IRBlockData at chunk {} block {} for dimension {}", cp, pos, dimName);
-            return Blocks.BLACK_WOOL.defaultBlockState();
+            return null;
         }
 
         if (ModConfigs.getIrDataFromParentDirectly && data.getParentPos() != null && !data.getParentPos().equals(pos)) {

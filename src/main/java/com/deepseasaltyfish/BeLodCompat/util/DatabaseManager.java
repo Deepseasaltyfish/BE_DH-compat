@@ -21,7 +21,6 @@ public class DatabaseManager {
     private static boolean enableSyncNormal = DEFAULT_ENABLE_SYNC_NORMAL;
 
     private static boolean enabled = false;
-    // 多连接管理
     private static final ConcurrentHashMap<Path, Connection> connections = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Path, ScheduledExecutorService> perDbExecutors = new ConcurrentHashMap<>();
 

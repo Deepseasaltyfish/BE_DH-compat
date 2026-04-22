@@ -26,9 +26,9 @@ public class DataBaseCache {
     private static final String COL_VERSION = "version";
     public static final int CURRENT_VERSION = 1;
 
-    // 每个数据库文件独立的表创建记录
+    // Table creation records per database file (to avoid repeated CREATE TABLE)
     private static final ConcurrentHashMap<Path, ConcurrentSkipListSet<String>> createdTablesMap = new ConcurrentHashMap<>();
-    // 每个数据库文件独立的状态ID缓存
+    // State ID cache per database file
     private static final ConcurrentHashMap<Path, ConcurrentHashMap<String, Integer>> stateIdCacheMap = new ConcurrentHashMap<>();
 
     private static String getTableName(String modId) {
@@ -43,6 +43,13 @@ public class DataBaseCache {
         return stateIdCacheMap.computeIfAbsent(dbFile, k -> new ConcurrentHashMap<>());
     }
 
+    /**
+     * Ensures that the block_data table for the given mod exists in the specified database.
+     * If the table does not exist, it is created.
+     *
+     * @param dbFile the database file path
+     * @param modId  the mod ID
+     */
     private static void ensureTableExists(Path dbFile, String modId) {
         if (!DatabaseManager.isReady(dbFile)) return;
         ConcurrentSkipListSet<String> created = getCreatedTables(dbFile);
@@ -85,6 +92,11 @@ public class DataBaseCache {
         }
     }
 
+    /**
+     * Initializes the global state dictionary table for the given database file.
+     *
+     * @param dbFile the database file path
+     */
     public static void initTable(Path dbFile) {
         if (!DatabaseManager.isReady(dbFile)) return;
         String dictSQL = "CREATE TABLE IF NOT EXISTS " + TABLE_DICT + " (id INTEGER PRIMARY KEY, state TEXT UNIQUE NOT NULL)";
@@ -120,6 +132,16 @@ public class DataBaseCache {
         return 0;
     }
 
+    /**
+     * Stores block data for a specific mod asynchronously or synchronously based on configuration.
+     *
+     * @param dbFile        the database file path
+     * @param modId         the mod ID
+     * @param pos           the block position
+     * @param blockStateStr the block state string
+     * @param color         the color (ARGB)
+     * @param version       the data version
+     */
     public static void putBlockData(Path dbFile, String modId, BlockPos pos, String blockStateStr, int color, int version) {
         if (!DatabaseManager.isReady(dbFile)) return;
         ensureTableExists(dbFile, modId);
@@ -140,6 +162,14 @@ public class DataBaseCache {
         LOGGER.debug("putBlockData: mod={}, pos={}, color=0x{}", modId, pos, Integer.toHexString(color));
     }
 
+    /**
+     * Loads all block data for a given chunk and mod into the provided map.
+     *
+     * @param dbFile    the database file path
+     * @param chunkPos  the chunk position
+     * @param modId     the mod ID
+     * @param targetMap the map to populate (must accept BlockPos as key and BlockDataEntry as value)
+     */
     public static void loadChunk(Path dbFile, ChunkPos chunkPos, String modId, Map<BlockPos, ? super BlockDataEntry> targetMap) {
         if (!DatabaseManager.isReady(dbFile)) return;
         ensureTableExists(dbFile, modId);
@@ -164,6 +194,14 @@ public class DataBaseCache {
         }, chunkPos.x, chunkPos.z);
     }
 
+    /**
+     * Retrieves the color of a block from the database.
+     *
+     * @param dbFile the database file path
+     * @param modId  the mod ID
+     * @param pos    the block position
+     * @return the color (ARGB), or null if not found
+     */
     public static Integer getColor(Path dbFile, String modId, BlockPos pos) {
         if (!DatabaseManager.isReady(dbFile)) return null;
         ensureTableExists(dbFile, modId);
@@ -177,6 +215,13 @@ public class DataBaseCache {
         return result[0] == -1 ? null : result[0];
     }
 
+    /**
+     * Removes block data for a specific position from the database.
+     *
+     * @param dbFile the database file path
+     * @param modId  the mod ID
+     * @param pos    the block position
+     */
     public static void removeBlockData(Path dbFile, String modId, BlockPos pos) {
         if (!DatabaseManager.isReady(dbFile)) return;
         ensureTableExists(dbFile, modId);
@@ -185,6 +230,13 @@ public class DataBaseCache {
         DatabaseManager.executeUpdate(dbFile, sql, pos.getX(), pos.getY(), pos.getZ());
     }
 
+    /**
+     * Removes all block data for a whole chunk from the database.
+     *
+     * @param dbFile    the database file path
+     * @param modId     the mod ID
+     * @param chunkPos  the chunk position
+     */
     public static void removeChunk(Path dbFile, String modId, ChunkPos chunkPos) {
         if (!DatabaseManager.isReady(dbFile)) return;
         ensureTableExists(dbFile, modId);
@@ -193,16 +245,26 @@ public class DataBaseCache {
         DatabaseManager.executeUpdate(dbFile, sql, chunkPos.x, chunkPos.z);
     }
 
+    /**
+     * Performs a VACUUM operation on the database to reclaim unused space.
+     * Use with caution.
+     *
+     * @param dbFile the database file path
+     */
     public static void vacuum(Path dbFile) {
         if (!DatabaseManager.isReady(dbFile)) return;
         DatabaseManager.executeUpdate(dbFile, "VACUUM");
         LOGGER.info("Database vacuumed for {}", dbFile);
     }
 
+    /**
+     * Simple data container for a block database entry.
+     */
     public static class BlockDataEntry {
         public final String blockStateStr;
         public final int color;
         public final int version;
+
         public BlockDataEntry(String blockStateStr, int color, int version) {
             this.blockStateStr = blockStateStr;
             this.color = color;

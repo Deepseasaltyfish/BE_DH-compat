@@ -37,11 +37,11 @@ public class ChunkEventHandler {
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (!(event.getChunk() instanceof LevelChunk chunk)) return;
         Level level = chunk.getLevel();
-        String dimName = level.dimension().location().toString(); // 获取维度名称
+        String dimName = level.dimension().location().toString(); // get dimension name
         chunk.getBlockEntities().forEach((pos, be) -> {
             CompoundTag beTag = be.saveWithFullMetadata();
             LOGGER.debug("onChunkWrite tag: {} at pos: {}", beTag, pos);
-            BlockDataUtil.tryExtractBlockData(beTag, pos, dimName); // 传入 dimName
+            BlockDataUtil.tryExtractBlockData(beTag, pos, dimName); // pass dimension name
         });
     }
 
@@ -76,6 +76,7 @@ public class ChunkEventHandler {
         levelDbMap.clear();
         LOGGER.info("Server stopped, closed all remaining DB connections");
     }
+
     @OnlyIn(Dist.CLIENT)
     private static void checkDhCompressionMode() {
         EDhApiWorldCompressionMode mode = Config.Common.LodBuilding.worldCompression.get();
@@ -89,10 +90,10 @@ public class ChunkEventHandler {
         }
     }
 
-    // 替换 pendingDbFile 为 pendingLevel 和 pendingDimName
+    // replace pendingDbFile with pendingLevel and pendingDimName
     private static Level pendingLevel = null;
     private static String pendingDimName = null;
-    // 添加在成员变量区域
+    // add to member variable area
     private static final ConcurrentHashMap<String, Path> levelDbMap = new ConcurrentHashMap<>();
 
     @SubscribeEvent
@@ -100,7 +101,7 @@ public class ChunkEventHandler {
         Level level = (Level) event.getLevel();
         if (!level.isClientSide() && level.getServer() == null) return;
 
-        // 如果是客户端多人游戏，延迟到登录后再打开
+        // For multiplayer client, delay opening until login
         if (level.isClientSide() && Minecraft.getInstance().getSingleplayerServer() == null) {
             pendingLevel = level;
             pendingDimName = level.dimension().location().getPath().replace('/', '_');
@@ -108,11 +109,11 @@ public class ChunkEventHandler {
             return;
         }
 
-        // 单机或服务端立即打开
+        // Singleplayer or server side, open immediately
         Path dbFile = getDbFileForLevel(level);
         if (dbFile == null) return;
 
-        openDatabase(level, dbFile);   // 传入 level
+        openDatabase(level, dbFile);   // pass level
         if (level.isClientSide()) checkDhCompressionMode();
     }
 
@@ -126,7 +127,7 @@ public class ChunkEventHandler {
         if (pendingLevel != null && pendingDimName != null) {
             Path dbFile = getDbFileForLevel(pendingLevel);
             if (dbFile != null) {
-                openDatabase(pendingLevel, dbFile);   // 传入 pendingLevel
+                openDatabase(pendingLevel, dbFile);   // pass pendingLevel
                 LOGGER.info("Database opened after login");
                 if (pendingLevel.isClientSide()) checkDhCompressionMode();
             }
@@ -135,6 +136,12 @@ public class ChunkEventHandler {
         }
     }
 
+    /**
+     * Generates the database file path for a given level.
+     *
+     * @param level the level (world)
+     * @return the database file path, or null if creation fails
+     */
     private static Path getDbFileForLevel(Level level) {
         Path worldRoot = WorldPathUtil.getWorldRootPath(level);
         String dimName = level.dimension().location().getPath().replace('/', '_');
@@ -156,11 +163,22 @@ public class ChunkEventHandler {
         return dbFile;
     }
 
+    /**
+     * Retrieves the database file path for a given dimension name.
+     *
+     * @param dimName the dimension name (e.g. "minecraft:overworld")
+     * @return the database file path, or null if not found
+     */
     public static Path getDbFileForDimension(String dimName) {
         return levelDbMap.get(dimName);
     }
 
-    // 打开数据库并初始化相关缓存
+    /**
+     * Opens a database and initializes related caches for the given level and file path.
+     *
+     * @param level  the level (world)
+     * @param dbFile the database file path
+     */
     private static void openDatabase(Level level, Path dbFile) {
         LOGGER.info("openDatabase called with dbFile: {}", dbFile);
         DatabaseManager.open(dbFile);

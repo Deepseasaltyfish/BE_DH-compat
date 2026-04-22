@@ -35,7 +35,6 @@ public abstract class MixinClientBlockStateColorCache {
     private void onGetColorReturn(BiomeWrapper biomeWrapper, FullDataSourceV2 fullDataSource, DhBlockPos blockPos, CallbackInfoReturnable<Integer> cir) {
         int originalColor = cir.getReturnValue();
         BlockPos mcPos = new BlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-        // 通过 clientLevelWrapper 获取维度名称
         String dimName = clientLevelWrapper != null ? clientLevelWrapper.getDimensionName() : "unknown";
         int cachedColor = LTBlockDataCache.getColorAt(mcPos, dimName);
         if (cachedColor != 0 && cachedColor != 0xFFFFFFFF) {
