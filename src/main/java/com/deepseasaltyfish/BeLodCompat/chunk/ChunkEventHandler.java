@@ -13,6 +13,7 @@ import com.seibel.distanthorizons.core.config.Config;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.api.distmarker.Dist;
@@ -43,6 +44,17 @@ public class ChunkEventHandler {
             LOGGER.debug("onChunkWrite tag: {} at pos: {}", beTag, pos);
             BlockDataUtil.tryExtractBlockData(beTag, pos, dimName); // pass dimension name
         });
+    }
+
+    @SubscribeEvent
+    public static void onChunkUnload(ChunkEvent.Unload event) {
+        LevelChunk chunk = (LevelChunk) event.getChunk();
+        Level level = chunk.getLevel();
+        if (level.isClientSide()) return;
+        String dimName = level.dimension().location().toString();
+        ChunkPos pos = chunk.getPos();
+        LTBlockDataCache.removeChunkInMemory(pos, dimName);
+        IRBlockDataCache.removeChunkInMemory(pos, dimName);
     }
 
     @SubscribeEvent

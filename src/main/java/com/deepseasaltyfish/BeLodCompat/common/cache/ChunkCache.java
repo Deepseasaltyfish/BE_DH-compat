@@ -28,6 +28,7 @@ public class ChunkCache<V> {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ConcurrentHashMap<ChunkPos, ScheduledFuture<?>> pendingRemovals = new ConcurrentHashMap<>();
     private final long removalDelayMs;
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(ChunkCache.class);
 
     public ChunkCache(long removalDelayMs) {
         this.removalDelayMs = removalDelayMs;
@@ -52,8 +53,11 @@ public class ChunkCache<V> {
         cancelRemoval(chunkPos);
         ScheduledFuture<?> future = scheduler.schedule(() -> {
             ConcurrentHashMap<BlockPos, V> removed = cache.remove(chunkPos);
-            if (removed != null && onRemove != null) {
-                onRemove.accept(chunkPos, removed);
+            if (removed != null) {
+                LOGGER.debug("Executed removal for chunk {} ({} entries)", chunkPos, removed.size());
+                if (onRemove != null) {
+                    onRemove.accept(chunkPos, removed);
+                }
             }
             pendingRemovals.remove(chunkPos);
         }, removalDelayMs, TimeUnit.MILLISECONDS);
@@ -73,12 +77,16 @@ public class ChunkCache<V> {
 
         ConcurrentHashMap<BlockPos, V> inner = cache.computeIfAbsent(chunkPos, cp -> new ConcurrentHashMap<>());
 
+        boolean wasEmpty = inner.isEmpty();
         V oldData = inner.get(pos);
         if (oldData != null && sameChecker.test(oldData, newData)) {
-            return false; // data unchanged, skip memory update
+            return false;
         }
 
         inner.put(pos.immutable(), newData);
+        if (wasEmpty) {
+            LOGGER.debug("Cache put: first entry for chunk {} at pos={}", chunkPos, pos);
+        }
         return true;
     }
 
