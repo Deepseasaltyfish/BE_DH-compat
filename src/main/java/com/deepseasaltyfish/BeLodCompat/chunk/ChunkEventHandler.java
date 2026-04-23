@@ -128,11 +128,17 @@ public class ChunkEventHandler {
     @SubscribeEvent
     @OnlyIn(Dist.CLIENT)
     public static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        java.net.InetSocketAddress addr = (java.net.InetSocketAddress) event.getConnection().getRemoteAddress();
-        String host = addr.getHostString();
-        int port = addr.getPort();
-        String ip = host + "_" + port;
-        String sanitizedIp = ip.replace(':', '_').replace('/', '_').replace('\\', '_');
+        String sanitizedIp;
+        java.net.SocketAddress remoteAddr = event.getConnection().getRemoteAddress();
+        if (remoteAddr instanceof java.net.InetSocketAddress) {
+            java.net.InetSocketAddress addr = (java.net.InetSocketAddress) remoteAddr;
+            String host = addr.getHostString();
+            int port = addr.getPort();
+            String ip = host + "_" + port;
+            sanitizedIp = ip.replace(':', '_').replace('/', '_').replace('\\', '_');
+        } else {
+            sanitizedIp = "singleplayer_local";//will not be used truly
+        }
         WorldPathUtil.setCachedServerIp(sanitizedIp);
 
         if (pendingLevel != null && pendingDimName != null) {
