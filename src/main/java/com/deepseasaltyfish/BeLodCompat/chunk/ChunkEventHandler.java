@@ -116,9 +116,12 @@ public class ChunkEventHandler {
     @SubscribeEvent
     @OnlyIn(Dist.CLIENT)
     public static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        String remoteAddr = event.getConnection().getRemoteAddress().toString();
-        String ip = remoteAddr.substring(1).replace('/', '_').replace(':', '_');
-        WorldPathUtil.setCachedServerIp(ip);
+        java.net.InetSocketAddress addr = (java.net.InetSocketAddress) event.getConnection().getRemoteAddress();
+        String host = addr.getHostString();
+        int port = addr.getPort();
+        String ip = host + "_" + port;
+        String sanitizedIp = ip.replace(':', '_').replace('/', '_').replace('\\', '_');
+        WorldPathUtil.setCachedServerIp(sanitizedIp);
 
         if (pendingLevel != null && pendingDimName != null) {
             Path dbFile = getDbFileForLevel(pendingLevel);
