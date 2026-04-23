@@ -17,8 +17,8 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class BlockReplacer extends DhApiChunkProcessingEvent {
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockReplacer.class);
+public class BlockStateReplacer extends DhApiChunkProcessingEvent {
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockStateReplacer.class);
     private static final AtomicBoolean DEAD = new AtomicBoolean(false);
     @Override
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)

@@ -1,10 +1,14 @@
 package com.deepseasaltyfish.BeLodCompat;
 
-import com.deepseasaltyfish.BeLodCompat.common.BlockReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockColorReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockStateOpacityReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockStateReplacer;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
+import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiBlockColorOverrideEvent;
+import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiBlockStateWrapperCreatedEvent;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
@@ -37,8 +41,15 @@ public class BeLodCompat
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-        BlockReplacer blockReplacer = new BlockReplacer();
-        DhApi.events.bind(DhApiChunkProcessingEvent.class, blockReplacer);
+        BlockStateReplacer blockStateReplacer = new BlockStateReplacer();
+        DhApi.events.bind(DhApiChunkProcessingEvent.class, blockStateReplacer);
+
+        BlockStateOpacityReplacer blockStateOpacityReplacer = new BlockStateOpacityReplacer();
+        DhApi.events.bind(DhApiBlockStateWrapperCreatedEvent.class, blockStateOpacityReplacer);
+
+        //TODO: wait DH for alpha support, still use mixin for now
+//        BlockColorReplacer blockColorReplacer = new BlockColorReplacer();
+//        DhApi.events.bind(DhApiBlockColorOverrideEvent.class, blockColorReplacer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call

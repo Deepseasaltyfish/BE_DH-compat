@@ -6,8 +6,8 @@ import com.deepseasaltyfish.BeLodCompat.util.DebugLogger;
 import com.seibel.distanthorizons.core.dataObjects.fullData.sources.FullDataSourceV2;
 import com.seibel.distanthorizons.core.pos.blockPos.DhBlockPos;
 import com.seibel.distanthorizons.core.wrapperInterfaces.world.IClientLevelWrapper;
-import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.BiomeWrapper;
-import loaderCommon.forge.com.seibel.distanthorizons.common.wrappers.block.ClientBlockStateColorCache;
+import com.seibel.distanthorizons.common.wrappers.block.BiomeWrapper_forge;
+import com.seibel.distanthorizons.common.wrappers.block.ClientBlockStateColorCache_forge;
 import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,21 +18,22 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
+ * This mixin class will never be used!
  * This only works all properly in MERGE_SAME_BLOCKS!
  * @see com.seibel.distanthorizons.core.dataObjects.fullData.sources.FullDataSourceV2
  * @see com.seibel.distanthorizons.core.dataObjects.transformers.FullDataOcclusionCuller
  * @see com.seibel.distanthorizons.api.enums.config.EDhApiWorldCompressionMode
  * */
 @Deprecated
-@Mixin(ClientBlockStateColorCache.class)
-public abstract class MixinClientBlockStateColorCache {
+@Mixin(ClientBlockStateColorCache_forge.class)
+public abstract class MixinClientBlockStateColorCache_forge {
     @Final
     @Shadow private IClientLevelWrapper clientLevelWrapper;
     @Unique
-    private static final DebugLogger bE_LOD_compat$LOGGER = DebugLogger.getLogger(MixinClientBlockStateColorCache.class);
+    private static final DebugLogger bE_LOD_compat$LOGGER = DebugLogger.getLogger(MixinClientBlockStateColorCache_forge.class);
 
     @Inject(method = "getColor", at = @At("RETURN"), cancellable = true, remap = false)
-    private void onGetColorReturn(BiomeWrapper biomeWrapper, FullDataSourceV2 fullDataSource, DhBlockPos blockPos, CallbackInfoReturnable<Integer> cir) {
+    private void onGetColorReturn(BiomeWrapper_forge biomeWrapper, FullDataSourceV2 fullDataSource, DhBlockPos blockPos, CallbackInfoReturnable<Integer> cir) {
         int originalColor = cir.getReturnValue();
         BlockPos mcPos = new BlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
         String dimName = clientLevelWrapper != null ? clientLevelWrapper.getDimensionName() : "unknown";
