@@ -10,10 +10,10 @@ public class BlockStateOpacityReplacer extends DhApiBlockStateWrapperCreatedEven
     @Override
     public void blockStateWrapperCreated(DhApiEventParam<EventParam> eventParam) {
         EventParam param = eventParam.value;
-        String serialString = param.getBlockStateWrapper().getSerialString();
-        if (serialString.contains("littletiles:tiles")) {
-            LOGGER.info(serialString);
+        String serialString = param.getBlockStateWrapper().getSerialString();//something like littletiles:tiles_STATE_{waterlogged:false}
+        if (serialString.startsWith("littletiles:tiles")) {
             param.setOpacity(LodUtil.BLOCK_FULLY_OPAQUE);
+            param.setAllowApiColorOverride(true);
         }
     }
 }
