@@ -14,7 +14,7 @@ This mod improves how Distant Horizons renders blocks from certain mods. Without
 Without this mod, LittleTiles blocks are treated as avoided blocks by Distant Horizons (similar to flowers), making them mostly invisible or appearing as gray when visible. Immersive Railroading rails appear as pure white.
 
 - **LittleTiles** – Extracts one tile's block state and color from LittleTiles blocks. Color blending requires database caching to be enabled and the Distant Horizons config option `common.lodBuilding.worldCompression` set to `"MERGE_SAME_BLOCKS"` for stable rendering.
-- **Immersive Railroading** – Reads the rail bed fill material ID from the parent block's NBT. If the fixed block override is not enabled, database caching must be active to ensure reliable long‑distance display. (The mod no longer uses the obsolete `railBedCache` field.)
+- **Immersive Railroading** – Reads the rail bed fill material ID from the parent block's NBT. If the fixed block override is not enabled, database caching must be active to ensure reliable long‑distance display.
 - **Database support** – Each dimension maintains its own SQLite database, stored in separate locations:
   - Singleplayer: `<save_folder>/belodcompat/<dimension>.db`
   - Multiplayer client: `.minecraft/belodcompat_servers/<server_ip>/<dimension>.db`
@@ -24,7 +24,7 @@ Without this mod, LittleTiles blocks are treated as avoided blocks by Distant Ho
 ## Requirements
 
 - Minecraft: 1.20.1 (Forge) or 1.21.1 (NeoForge)
-- Distant Horizons 2.3.5 or later
+- Distant Horizons 3.0.2 or later
 - LittleTiles (optional)
 - Immersive Railroading (optional)
 
@@ -61,4 +61,4 @@ LGPL 3.0
 
 ## Project Links
 
-GitHub: [https://github.com/Deepseasaltyfish/BE_LOD-compat](https://github.com/Deepseasaltyfish/BE_DH-compat)
+GitHub: [https://github.com/Deepseasaltyfish/BE_LOD-compat](https://github.com/Deepseasaltyfish/BE_LOD-compat)
