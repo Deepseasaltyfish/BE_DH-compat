@@ -61,4 +61,4 @@ LGPL 3.0
 
 ## Project Links
 
-GitHub: [https://github.com/Deepseasaltyfish/BE_DH-compat](https://github.com/Deepseasaltyfish/BE_DH-compat)
+GitHub: [https://github.com/Deepseasaltyfish/BE_LOD-compat](https://github.com/Deepseasaltyfish/BE_DH-compat)
