@@ -5,9 +5,8 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "MixinChunkSerialize",
-    "MixinLevel",
     "MixinLevelChunk",
-    "distanthorizons.MixinClientBlockStateColorCache_forge"
+    "MixinLevel"
   ],
   "client": [
     "client.MixinClientLevel",
