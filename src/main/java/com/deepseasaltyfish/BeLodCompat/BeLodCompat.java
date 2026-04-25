@@ -1,10 +1,14 @@
 package com.deepseasaltyfish.BeLodCompat;
 
-import com.deepseasaltyfish.BeLodCompat.common.BlockReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockColorReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockStateOpacityReplacer;
+import com.deepseasaltyfish.BeLodCompat.common.BlockStateReplacer;
 import com.deepseasaltyfish.BeLodCompat.config.ModConfigs;
 import com.deepseasaltyfish.BeLodCompat.util.DatabaseManager;
 import com.mojang.logging.LogUtils;
 import com.seibel.distanthorizons.api.DhApi;
+import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiBlockColorOverrideEvent;
+import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiBlockStateWrapperCreatedEvent;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiChunkProcessingEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -29,8 +33,14 @@ public class BeLodCompat {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-        BlockReplacer blockReplacer = new BlockReplacer();
-        DhApi.events.bind(DhApiChunkProcessingEvent.class, blockReplacer);
+        BlockStateReplacer blockStateReplacer = new BlockStateReplacer();
+        DhApi.events.bind(DhApiChunkProcessingEvent.class, blockStateReplacer);
+
+        BlockStateOpacityReplacer blockStateOpacityReplacer = new BlockStateOpacityReplacer();
+        DhApi.events.bind(DhApiBlockStateWrapperCreatedEvent.class, blockStateOpacityReplacer);
+
+        BlockColorReplacer blockColorReplacer = new BlockColorReplacer();
+        DhApi.events.bind(DhApiBlockColorOverrideEvent.class, blockColorReplacer);
     }
 
     private void onClientSetup(final FMLClientSetupEvent event) {

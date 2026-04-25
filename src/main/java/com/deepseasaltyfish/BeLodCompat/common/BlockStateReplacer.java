@@ -17,8 +17,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class BlockReplacer extends DhApiChunkProcessingEvent {
-    private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockReplacer.class);
+public class BlockStateReplacer extends DhApiChunkProcessingEvent {
+    private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockStateReplacer.class);
     private static final AtomicBoolean DEAD = new AtomicBoolean(false);
     @Override
     public void blockOrBiomeChangedDuringChunkProcessing(DhApiEventParam<EventParam> e)
@@ -40,6 +40,10 @@ public class BlockReplacer extends DhApiChunkProcessingEvent {
         String dimName = e.value.levelWrapper.getDimensionName();
 
         if (LtBaseId.equals("littletiles:tiles")) {
+            int cachedColor = LTBlockDataCache.getColorAt(pos, dimName);
+            if (cachedColor != 0 && cachedColor != 0xFFFFFFFF) {//avoid missing AllowApiColorOverride for colored LT block!
+                return;
+            }
             state = LTBlockDataCache.getBlockStateAt(pos, dimName);
         } else if (IrBaseId.equals("immersiverailroading:block_rail") || IrBaseId.equals("immersiverailroading:block_rail_gag")) {
             state = IRBlockDataCache.getBlockStateAt(pos, dimName);
