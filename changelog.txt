@@ -4,3 +4,4 @@
 -0.5-1.20.1 add full support for sqlite database, LT color and IR bedFill extract
 -0.6a-1.20.1 fix server ip path and add chunkUnload event listening
 -0.7a-1.20.1 adapt to dh-3.0.2
+-0.7.2a-1.20.1 fix LT colored block wrong basic color
