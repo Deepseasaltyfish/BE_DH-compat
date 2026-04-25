@@ -32,11 +32,11 @@ public class BlockColorReplacer extends DhApiBlockColorOverrideEvent {
                     pos
             );
 
-            param.setColor(
-                    (blended >> 16) & 0xFF,
-                    (blended >> 8) & 0xFF,
-                    blended & 0xFF
-            );
+            int alpha = (blended >> 24) & 0xFF;
+            int red   = (blended >> 16) & 0xFF;
+            int green = (blended >> 8) & 0xFF;
+            int blue  = blended & 0xFF;
+            param.setColor(alpha, red, green, blue);
         }
     }
 }

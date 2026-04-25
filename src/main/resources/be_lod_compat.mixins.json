@@ -6,7 +6,6 @@
   "mixins": [
     "MixinChunkSerialize",
     "MixinLevelChunk",
-    "distanthorizons.MixinClientBlockStateColorCache_forge",
     "MixinLevel"
   ],
   "client": [

@@ -48,8 +48,8 @@ public class BeLodCompat
         DhApi.events.bind(DhApiBlockStateWrapperCreatedEvent.class, blockStateOpacityReplacer);
 
         //TODO: wait DH for alpha support, still use mixin for now, also idk why it does not work yet
-//        BlockColorReplacer blockColorReplacer = new BlockColorReplacer();
-//        DhApi.events.bind(DhApiBlockColorOverrideEvent.class, blockColorReplacer);
+        BlockColorReplacer blockColorReplacer = new BlockColorReplacer();
+        DhApi.events.bind(DhApiBlockColorOverrideEvent.class, blockColorReplacer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
