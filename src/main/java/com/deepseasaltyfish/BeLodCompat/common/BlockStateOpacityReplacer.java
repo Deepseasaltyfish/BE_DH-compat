@@ -14,6 +14,8 @@ public class BlockStateOpacityReplacer extends DhApiBlockStateWrapperCreatedEven
         if (serialString.startsWith("littletiles:tiles")) {
             param.setOpacity(LodUtil.BLOCK_FULLY_OPAQUE);
             param.setAllowApiColorOverride(true);
+        } else {
+            param.setAllowApiColorOverride(true);
         }
     }
 }
