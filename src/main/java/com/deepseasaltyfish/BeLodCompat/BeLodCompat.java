@@ -47,8 +47,9 @@ public class BeLodCompat
         BlockStateOpacityReplacer blockStateOpacityReplacer = new BlockStateOpacityReplacer();
         DhApi.events.bind(DhApiBlockStateWrapperCreatedEvent.class, blockStateOpacityReplacer);
 
-        BlockColorReplacer blockColorReplacer = new BlockColorReplacer();
-        DhApi.events.bind(DhApiBlockColorOverrideEvent.class, blockColorReplacer);
+        //TODO: revert this until the api could be used...
+//        BlockColorReplacer blockColorReplacer = new BlockColorReplacer();
+//        DhApi.events.bind(DhApiBlockColorOverrideEvent.class, blockColorReplacer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
