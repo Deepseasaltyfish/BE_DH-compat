@@ -7,7 +7,7 @@
     "MixinChunkSerialize",
     "MixinLevel",
     "MixinLevelChunk",
-    "distanthorizons.MixinClientBlockStateColorCache_forge"
+    "distanthorizons.MixinClientBlockStateColorCache_neoforge"
   ],
   "client": [
     "client.MixinClientLevel",
