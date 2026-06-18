@@ -4,3 +4,4 @@
 -0.6a-1.21.1 fix server ip path and add chunkUnload event listening
 -0.7a-1.21.1 adapt to dh-3.0.2
 -0.7.2a-1.21.1 fix LT colored block wrong basic color
+-0.7.3a-1.21.1 adapt to dh-3.1.0

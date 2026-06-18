@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
 public class BlockColorReplacer extends DhApiBlockColorOverrideEvent {
     private static final DebugLogger LOGGER = DebugLogger.getLogger(BlockColorReplacer.class);
     @Override
-    public void blockStateWrapperCreated(DhApiEventParam<EventParam> eventParam) {
+    public void onBlockColorOverridden(DhApiEventParam<EventParam> eventParam) {
         EventParam param = eventParam.value;
         int originalColor = param.getColorAsInt();
 

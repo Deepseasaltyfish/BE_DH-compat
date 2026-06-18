@@ -48,7 +48,7 @@ public class BlockStateReplacer extends DhApiChunkProcessingEvent {
         }
 
         if (state == null) {
-            state = Blocks.BLACK_WOOL.defaultBlockState();//TODO: make this a debug config option
+            state = Blocks.PURPLE_CONCRETE.defaultBlockState();//TODO: make this a debug config option
             LOGGER.debug("Found null state at {} in replacer", pos);
         }
         id = BuiltInRegistries.BLOCK.getKey(state.getBlock());

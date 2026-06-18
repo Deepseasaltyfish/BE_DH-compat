@@ -99,7 +99,7 @@ dependencies {
 //    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     // Add the DH Api for compile time development
-    compileOnly "maven.modrinth:DistantHorizonsApi:6.1.0" // maven
+    compileOnly "maven.modrinth:DistantHorizonsApi:7.0.0" // maven
 //    compileOnly fg.deobf("blank:DistantHorizonsAPI:4.0.0-b-dev") // local Jar file, ile should be named in the format: "DistantHorizonsAPI-VERSION.jar"  IE "DistantHorizonsAPI-2.0.0a-dev.jar"
 
     // Add the Full DH mod for runtime use
@@ -107,7 +107,7 @@ dependencies {
     // accidentally use non-API methods that could change without notice
     runtimeOnly "maven.modrinth:sodium:mc1.21.1-0.6.13-neoforge"
     runtimeOnly "maven.modrinth:iris:1.8.12+1.21.1-neoforge"
-    implementation "maven.modrinth:DistantHorizons:3.0.2-b-1.21.1"
+    implementation "maven.modrinth:DistantHorizons:3.1.0-b-1.21.1"
 //    runtimeOnly fg.deobf("blank:DistantHorizons:2.3.0-b-dev") // local Jar file, file should use the name format: "DistantHorizons-VERSION.jar"  IE "DistantHorizons-2.0.0a-dev.jar"
 //    runtimeOnly 'cam72cam.universalmodcore:UniversalModCore:1.20.1-forge-1.2.3-8ec6ff1'
 //    runtimeOnly 'trackapi:TrackAPI:1.20.1-forge-1.2'
