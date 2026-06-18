@@ -111,7 +111,7 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     // Add the DH Api for compile time development
-    compileOnly fg.deobf("maven.modrinth:DistantHorizonsApi:6.1.0") // maven
+    compileOnly fg.deobf("maven.modrinth:DistantHorizonsApi:7.0.0") // maven
 //    compileOnly fg.deobf("blank:DistantHorizonsAPI:4.0.0-b-dev") // local Jar file, ile should be named in the format: "DistantHorizonsAPI-VERSION.jar"  IE "DistantHorizonsAPI-2.0.0a-dev.jar"
 
     // SQLite 支持 - 排除 slf4j 传递依赖
@@ -129,7 +129,7 @@ dependencies {
     // accidentally use non-API methods that could change without notice
     runtimeOnly fg.deobf("curse.maven:embeddium-908741:5630140")
     runtimeOnly fg.deobf("curse.maven:oculus-581495:6020952")
-    implementation fg.deobf("maven.modrinth:DistantHorizons:3.0.2-b-1.20.1") // maven
+    implementation fg.deobf("maven.modrinth:DistantHorizons:3.1.0-b-1.20.1") // maven
 //    runtimeOnly fg.deobf("blank:DistantHorizons:2.3.0-b-dev") // local Jar file, file should use the name format: "DistantHorizons-VERSION.jar"  IE "DistantHorizons-2.0.0a-dev.jar"
     runtimeOnly fg.deobf('cam72cam.universalmodcore:UniversalModCore:1.20.1-forge-1.2.3-8ec6ff1')
     runtimeOnly fg.deobf('trackapi:TrackAPI:1.20.1-forge-1.2')
